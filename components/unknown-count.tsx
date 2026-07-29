@@ -9,8 +9,8 @@ export function UnknownCount() {
 
     useEffect(() => {
         OpenDoor();
+        InitiateCount();
         const intervalId = setInterval(async () => {
-            await InitiateCount();
             const data = await GetUnknown();
             if (data == undefined) {
                 return;
