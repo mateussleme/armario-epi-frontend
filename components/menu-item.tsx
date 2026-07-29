@@ -1,9 +1,10 @@
 "use client"
 
 import { Box, Flex, Text } from "@chakra-ui/react"
-import { IconArrowBackUp, IconBuildingWarehouse, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconProps, IconShoppingBag, IconUserFilled, IconUsersGroup, IconVideo } from "@tabler/icons-react"
+import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconProps, IconShoppingBag, IconUserFilled, IconUsersGroup, IconVideo } from "@tabler/icons-react"
 import { ForwardRefExoticComponent, RefAttributes, useState } from "react";
 import Link from "next/link";
+import { CloseDoor } from "@/api/controls";
 
 type ActionData = {
     icon: ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
@@ -100,7 +101,7 @@ const ACTION_MAP: Record<string, ActionData> = {
     },
 }
 
-export function MenuItem({ action, override }: { action: string, override?: string }) {
+export function MenuItem({ action, override, closesDoor }: { action: string, override?: string, closesDoor?: boolean }) {
     const [isHovering, setHovering] = useState(false);
     const actionData = ACTION_MAP[action];
 
@@ -112,7 +113,16 @@ export function MenuItem({ action, override }: { action: string, override?: stri
         url = "/auth?" + params.toString();
     }
 
-    return <Link href={override ?? url} prefetch={false} style={{ width: "100%" }}>
+    return <Link
+        href={override ?? url}
+        prefetch={false}
+        style={{ width: "100%" }}
+        onNavigate={async (e) => {
+            if (closesDoor) {
+                await CloseDoor();
+            }
+        }}
+    >
         <Box
             w="100%"
             px="2rem"

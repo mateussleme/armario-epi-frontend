@@ -45,7 +45,7 @@ export default async function Fill() {
                     <Grid templateColumns="repeat(6, 1fr)" gap="6" w="100%" alignItems={"center"}>
                         {itemGrid}
                     </Grid>
-                    <MenuItem action="back" override="/restricted" />
+                    <MenuItem action="back" override="/restricted" closesDoor={true} />
                 </ViewTransition>
             </VStack>
         </AbsoluteCenter>
