@@ -1,12 +1,13 @@
 "use client"
 
-import { CloseDoor } from "@/api/controls";
+import { CloseDoor, DoorState, InitiateCount, UpdateInventory } from "@/api/controls";
 import { GetItemData, SetUnknown } from "@/api/item-data";
 import { ItemData } from "@/types/ItemData";
 import { AspectRatio, Box, Image, Spinner, Stack, Text } from "@chakra-ui/react"
 import Link from "next/link"
 import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
+import { READING_TIME } from "./item-verifier";
 
 export function InfoItem({ itemId, isInventory }: { itemId: string, isInventory?: boolean }) {
     const [isHovering, setHovering] = useState(false);
@@ -19,8 +20,15 @@ export function InfoItem({ itemId, isInventory }: { itemId: string, isInventory?
     }, [itemId])
 
     return <Link href={isInventory ? "#" : `/instructions/${itemId}`} prefetch={false} style={{ width: "100%" }} onClick={isInventory ? async () => {
-        await SetUnknown(itemId);
         await CloseDoor();
+        while (await DoorState()) {
+            await new Promise(r => setTimeout(r, 500));
+        }
+        
+        await InitiateCount();
+        await new Promise(r => setTimeout(r, READING_TIME));
+        await SetUnknown(itemId);
+        await UpdateInventory();
 
         redirect("/restricted");
     } : undefined}>

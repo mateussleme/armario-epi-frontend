@@ -7,7 +7,7 @@ import { getCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const READING_TIME: number = 2000
+export const READING_TIME: number = 2000
 
 export function ItemVerifier({ isInitial }: { isInitial: boolean }) {
     const router = useRouter();
