@@ -1,5 +1,5 @@
 "use client"
-import { OpenDoor } from "@/api/controls";
+import { InitiateCount, OpenDoor } from "@/api/controls";
 import { GetUnknown } from "@/api/item-data";
 import { Box, Flex, Text } from "@chakra-ui/react"
 import { useEffect, useState } from "react"
@@ -10,6 +10,7 @@ export function UnknownCount() {
     useEffect(() => {
         OpenDoor();
         const intervalId = setInterval(async () => {
+            await InitiateCount();
             const data = await GetUnknown();
             if (data == undefined) {
                 return;
