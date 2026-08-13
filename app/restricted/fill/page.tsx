@@ -21,7 +21,7 @@ export default async function Fill() {
     for (const [i, item] of Object.entries(await GetAllItems())) {
         itemGrid.push(
             <GridItem colSpan={2} key={i}>
-                <InfoItem itemId={item} isInventory={true} />
+                <InfoItem itemId={item} override={`/restricted/fill/${item}`} />
             </GridItem>
         );
     }
@@ -41,11 +41,10 @@ export default async function Fill() {
                 </VStack>
 
                 <ViewTransition name="mainContent">
-                    <UnknownCount/>
                     <Grid templateColumns="repeat(6, 1fr)" gap="6" w="100%" alignItems={"center"}>
                         {itemGrid}
                     </Grid>
-                    <MenuItem action="back" override="/restricted" closesDoor={true} />
+                    <MenuItem action="back" override="/restricted" />
                 </ViewTransition>
             </VStack>
         </AbsoluteCenter>
