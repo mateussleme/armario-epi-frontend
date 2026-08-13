@@ -1,15 +1,12 @@
 "use client"
 
-import { CloseDoor, DoorState, InitiateCount, UpdateInventory } from "@/api/controls";
-import { GetItemData, SetUnknown } from "@/api/item-data";
+import { GetItemData } from "@/api/item-data";
 import { ItemData } from "@/types/ItemData";
 import { AspectRatio, Box, Image, Spinner, Stack, Text } from "@chakra-ui/react"
 import Link from "next/link"
-import { redirect } from "next/navigation";
 import { useEffect, useState } from "react";
-import { READING_TIME } from "./item-verifier";
 
-export function InfoItem({ itemId, isInventory }: { itemId: string, isInventory?: boolean }) {
+export function InfoItem({ itemId, override }: { itemId: string, override?: string }) {
     const [isHovering, setHovering] = useState(false);
     const [itemData, setItemData] = useState(undefined as ItemData | undefined);
 
@@ -19,19 +16,7 @@ export function InfoItem({ itemId, isInventory }: { itemId: string, isInventory?
         })
     }, [itemId])
 
-    return <Link href={isInventory ? "#" : `/instructions/${itemId}`} prefetch={false} style={{ width: "100%" }} onClick={isInventory ? async () => {
-        await CloseDoor();
-        while (await DoorState()) {
-            await new Promise(r => setTimeout(r, 500));
-        }
-        
-        await InitiateCount();
-        await new Promise(r => setTimeout(r, READING_TIME));
-        await SetUnknown(itemId);
-        await UpdateInventory();
-
-        redirect("/restricted");
-    } : undefined}>
+    return <Link href={override ?? `/instructions/${itemId}`} prefetch={false} style={{ width: "100%" }}>
         <Box
             w="100%"
             px="2rem"
