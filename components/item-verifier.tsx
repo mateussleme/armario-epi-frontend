@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 
 export const READING_TIME: number = 2000
 
-export function ItemVerifier({ isInitial }: { isInitial: boolean }) {
+export function ItemVerifier({ isInitial, override }: { isInitial: boolean, override?: string }) {
     const router = useRouter();
     const [doorOpened, setDoorOpened] = useState(false);
     const [initiated, setInitiated] = useState(false);
@@ -45,6 +45,12 @@ export function ItemVerifier({ isInitial }: { isInitial: boolean }) {
                 await CloseDoor();
                 await InitiateCount();
                 await new Promise(r => setTimeout(r, READING_TIME));
+
+                if (override != undefined) {
+                    router.push(override);
+                    return undefined;
+                }
+
                 const savedItems = await GetSaved();
                 const newItems = await GetCount();
 
@@ -90,12 +96,14 @@ export function ItemVerifier({ isInitial }: { isInitial: boolean }) {
                     availableItems: availableItems
                 } as VerificationResult;
             })().then((result) => {
-                const params = new URLSearchParams();
-                params.set("result", JSON.stringify(result));
-                router.push("/took?" + params.toString());
+                if (result != undefined) {
+                    const params = new URLSearchParams();
+                    params.set("result", JSON.stringify(result));
+                    router.push("/took?" + params.toString());
+                }
             })
         };
-    }, [doorOpened, initiated, router]);
+    }, [doorOpened, initiated, override, router]);
 
     return <></>
 }
