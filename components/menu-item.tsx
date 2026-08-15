@@ -1,7 +1,7 @@
 "use client"
 
 import { Box, Flex, Text } from "@chakra-ui/react"
-import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconProps, IconShoppingBag, IconUserFilled, IconUsersGroup, IconVideo } from "@tabler/icons-react"
+import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconProps, IconRefresh, IconShoppingBag, IconUserFilled, IconUsersGroup, IconVideo } from "@tabler/icons-react"
 import { ForwardRefExoticComponent, RefAttributes, useState } from "react";
 import Link from "next/link";
 import { CloseDoor } from "@/api/controls";
@@ -98,6 +98,16 @@ const ACTION_MAP: Record<string, ActionData> = {
         iconColor: "MenuText",
         backgroundActive: "bg.emphasized",
         backgroundInactive: "bg.subtle",
+    },
+    // inventory actions
+    ["retryInventory"]: {
+        icon: IconRefresh,
+        caption: "Refazer",
+        url: "/restricted/fill",
+        authenticated: false,
+        iconColor: "MenuText",
+        backgroundActive: "orange.400",
+        backgroundInactive: "orange.300",
     },
 }
 
