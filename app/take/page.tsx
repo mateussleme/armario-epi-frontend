@@ -4,9 +4,12 @@ import { ItemVerifier } from "@/components/item-verifier";
 import { AbsoluteCenter, Text, VStack } from "@chakra-ui/react";
 import { IconShoppingBag } from "@tabler/icons-react";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { ViewTransition } from "react";
 
 export default async function Take() {
+    await connection();
+
     const cookieStore = await cookies();
     const user = cookieStore.get("user")?.value ?? "";
     const items = await GetAvailableItems(user);

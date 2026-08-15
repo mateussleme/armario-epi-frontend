@@ -1,10 +1,10 @@
-import { UpdateInventory } from "@/api/controls";
 import { ItemBadge } from "@/components/item-badge";
 import { ItemVerifier } from "@/components/item-verifier";
 import { TakeConfirm } from "@/components/take-confirm";
 import { VerificationResult } from "@/types/VerificationResult";
 import { AbsoluteCenter, Text, VStack } from "@chakra-ui/react";
 import { IconShoppingBagCheck, IconShoppingBagX } from "@tabler/icons-react";
+import { connection } from "next/server";
 import { ViewTransition } from "react";
 
 export default async function Took({
@@ -12,6 +12,8 @@ export default async function Took({
 }: {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+    await connection();
+
     const resultRaw = (await searchParams).result ?? "0";
     const resultJson = (Array.isArray(resultRaw) ? resultRaw[0] : resultRaw);
     const result = JSON.parse(resultJson) as VerificationResult;

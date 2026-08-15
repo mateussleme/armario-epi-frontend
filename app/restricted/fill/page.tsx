@@ -2,14 +2,16 @@ import { GetAllItems } from "@/api/item-data";
 import { GetUser } from "@/api/users";
 import { InfoItem } from "@/components/info-item";
 import { MenuItem } from "@/components/menu-item";
-import { UnknownCount } from "@/components/unknown-count";
 import { AbsoluteCenter, VStack, Text, GridItem, Grid } from "@chakra-ui/react";
 import { IconForklift } from "@tabler/icons-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { ReactNode, ViewTransition } from "react";
 
 export default async function Fill() {
+    await connection();
+
     const cookieStore = await cookies();
     const user = cookieStore.get("user")?.value ?? "";
     const userData = await GetUser(user);

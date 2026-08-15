@@ -5,9 +5,12 @@ import { AbsoluteCenter, VStack, Text } from "@chakra-ui/react";
 import { IconUserFilled } from "@tabler/icons-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { ViewTransition } from "react";
 
 export default async function Users() {
+    await connection();
+
     const cookieStore = await cookies();
     const user = cookieStore.get("user")?.value ?? "";
     const userData = await GetUser(user);

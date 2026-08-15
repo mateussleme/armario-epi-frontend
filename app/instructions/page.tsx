@@ -4,8 +4,11 @@ import { AbsoluteCenter, Grid, GridItem, Text, VStack } from "@chakra-ui/react";
 import { IconVideoFilled } from "@tabler/icons-react";
 import { ReactNode, ViewTransition } from "react";
 import { GetAllItems } from "@/api/item-data";
+import { connection } from "next/server";
 
 export default async function Instructions() {
+    await connection();
+
     const itemGrid = [] as ReactNode[];
     for (const [i, item] of Object.entries(await GetAllItems())) {
         itemGrid.push(
