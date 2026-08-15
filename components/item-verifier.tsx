@@ -46,11 +46,6 @@ export function ItemVerifier({ isInitial, override }: { isInitial: boolean, over
                 await InitiateCount();
                 await new Promise(r => setTimeout(r, READING_TIME));
 
-                if (override != undefined) {
-                    router.push(override);
-                    return undefined;
-                }
-
                 const savedItems = await GetSaved();
                 const newItems = await GetCount();
 
@@ -68,6 +63,13 @@ export function ItemVerifier({ isInitial, override }: { isInitial: boolean, over
                     if (!(item in savedItems)) {
                         itemsChanged[item] = count;
                     }
+                }
+
+                if (override != undefined) {
+                    const params = new URLSearchParams();
+                    params.set("itemsChanged", JSON.stringify(itemsChanged));
+                    router.push(override + "?" + params.toString());
+                    return undefined;
                 }
 
                 const user = (await getCookie("user"))?.valueOf() ?? ""
