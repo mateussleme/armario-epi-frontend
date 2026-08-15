@@ -1,5 +1,6 @@
 "use client"
 
+import { UpdateInventory } from "@/api/controls";
 import { Box, Flex, Text } from "@chakra-ui/react";
 import { IconCheck } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
@@ -20,7 +21,9 @@ export function TakeConfirm() {
         onMouseEnter={() => { setHovering(true) }}
         onMouseLeave={() => { setHovering(false) }}
         onClick={() => {
-            router.push("/");
+            UpdateInventory().then(() => {
+                router.push("/");
+            });
         }}
     >
         <Flex gap="4" justify="space-between" align="center">

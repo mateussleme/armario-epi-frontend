@@ -31,10 +31,6 @@ export default async function Took({
         }
     }
 
-    if (result.valid) {
-        await UpdateInventory();
-    }
-
     return (
         <>
             <AbsoluteCenter bg={result.valid ? "green.subtle" : "red.subtle"} w="100vw" h="100vh">
