@@ -1,4 +1,4 @@
-import { GetItemData } from "@/api/item-data";
+import { GetItemData, GetUnknown } from "@/api/item-data";
 import { GetUser } from "@/api/users";
 import { InventoryButton } from "@/components/inventory-button";
 import { MenuItem } from "@/components/menu-item";
@@ -20,6 +20,7 @@ export default async function FilledItem({ params, searchParams }: { params: Pro
     if (itemData == undefined) {
         redirect("/");
     }
+    const newItems = await GetUnknown();
 
     const itemsRaw = (await searchParams).itemsChanged ?? "{}";
     const itemsJson = (Array.isArray(itemsRaw) ? itemsRaw[0] : itemsRaw);
@@ -50,8 +51,8 @@ export default async function FilledItem({ params, searchParams }: { params: Pro
                 <ViewTransition name="mainContent">
                     <Text textStyle="3xl" fontWeight="bold">As seguintes alterações foram efetuadas</Text>
                     <Text textStyle="1xl" fontWeight="bold">
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed eu vulputate mauris. Quisque sit amet ipsum finibus, cursus velit blandit, finibus justo. Sed et accumsan tortor. Donec id velit quis diam euismod vulputate nec quis massa. Sed ipsum elit, scelerisque ut ullamcorper auctor, euismod vel dolor. Mauris sed nisl erat. Suspendisse eu dictum mi.
-                        Pellentesque eget mollis quam. Nunc tempus lorem sed orci pharetra, at pretium risus porta. Mauris maximus, turpis eget lacinia egestas, lectus nibh placerat lectus, a gravida orci neque non urna. Duis molestie iaculis lectus nec tincidunt. Cras consequat mauris sed nibh sodales posuere eget eu urna. Sed at felis sit amet nisi vulputate ullamcorper. Sed ex metus, molestie ultricies mauris vel, viverra iaculis enim. Mauris rutrum posuere erat, sed gravida orci sodales quis. Pellentesque in placerat arcu. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                        {(newItems ?? []).length} novos<br/><br/>
+                        {itemsJson}
                     </Text>
                     <MenuItem action="retryInventory" override={`/restricted/fill/${itemId}`} />
                     <InventoryButton itemId={itemId} />
