@@ -1,10 +1,12 @@
 import { GetItemData } from "@/api/item-data";
 import { GetUser } from "@/api/users";
 import { ItemVerifier } from "@/components/item-verifier";
-import { AbsoluteCenter, VStack, Text, AspectRatio, Image } from "@chakra-ui/react";
+import { Flex, VStack, Text, AspectRatio, Image, Button } from "@chakra-ui/react";
+import { IconArrowBackUp } from "@tabler/icons-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ViewTransition } from "react";
+import { C, MAX_W } from "@/theme/colors";
 
 export default async function FillItem({ params }: { params: Promise<{ itemId: string }> }) {
     const cookieStore = await cookies();
@@ -20,34 +22,35 @@ export default async function FillItem({ params }: { params: Promise<{ itemId: s
         redirect("/");
     }
 
-
     return (
-        <AbsoluteCenter bg="orange.subtle" w="100vw" h="100vh">
-            <VStack gap="3rem" w="80vw">
+        <Flex justify="center" bg={C.bg} w="100vw" minH="100vh" py="3rem" px="4">
+            <VStack gap="3rem" w="80vw" maxW={MAX_W}>
                 <VStack gap="1rem">
                     <ViewTransition name="mainIcon">
                         <AspectRatio
                             w="min(16vw, 16vh)"
                             ratio={1}
-                            bg={"bg.info"}
+                            bg={C.surface}
                             borderRadius={"xl"}
-                            borderColor={"border.emphasized"}
+                            borderColor={C.line}
                             borderWidth="0.1rem"
                             overflow={"hidden"}
                         >
-                            <Image src={itemData.imageUri} objectFit="cover" />
+                            <Image src={itemData.imageUri} alt={itemData.title} objectFit="cover" />
                         </AspectRatio>
                     </ViewTransition>
                     <ViewTransition name="mainText">
-                        <Text textStyle="4xl" fontWeight="normal">Abastecer</Text>
+                        <Text textStyle="4xl" fontWeight="normal" color={C.ink}>Abastecer</Text>
                     </ViewTransition>
                 </VStack>
 
                 <ViewTransition name="mainContent">
-                    <Text textStyle="3xl" fontWeight="bold">Abra a porta e abasteça todas as unidades de {itemData.title}</Text>
+                    <Text textStyle="3xl" fontWeight="bold" color={C.ink}>Abra a porta e abasteça todas as unidades de {itemData.title}</Text>
                     <ItemVerifier isInitial={true} override={`/restricted/filled/${itemId}`} />
                 </ViewTransition>
+
+        
             </VStack>
-        </AbsoluteCenter>
+        </Flex>
     );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Provider } from "@/components/ui/provider";
-import { ViewTransition } from "react";
+import { VirtualKeyboard } from "@/components/virtual-keyboard";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -9,19 +9,21 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
-  return (
-    <html lang="pt_BR" suppressHydrationWarning>
-      <body>
-        <Provider>
-          <ViewTransition>
-            {children}
-          </ViewTransition>
-        </Provider>
-      </body>
-    </html>
-  );
+    return (
+        <html lang="pt-BR" suppressHydrationWarning>
+            <body>
+                <Provider>
+                    {children}
+                    {/* Fica em todas as telas porque a administracao tambem e
+                        feita na tela do armario, onde nao ha teclado fisico.
+                        Comeca escondido: so aparece ao tocar no botao. */}
+                    <VirtualKeyboard />
+                </Provider>
+            </body>
+        </html>
+    );
 }

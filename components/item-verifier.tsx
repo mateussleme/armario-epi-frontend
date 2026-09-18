@@ -1,7 +1,8 @@
 "use client"
 
 import { CloseDoor, DoorState, GetCount, GetSaved, InitiateCount, OpenDoor } from "@/api/controls";
-import { GetAvailableItems } from "@/api/item-data";
+import { GetAvailableItemsByOrigin } from "@/api/item-data";
+import { ORIGEM_ARMARIO } from "@/types/ItemData";
 import { VerificationResult } from "@/types/VerificationResult";
 import { getCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
@@ -74,8 +75,12 @@ export function ItemVerifier({ isInitial, override }: { isInitial: boolean, over
 
                 const user = (await getCookie("user"))?.valueOf() ?? ""
 
+                // So os itens do armario. Com a lista inteira, um item obrigatorio
+                // do almoxarifado (que nunca vai ser lido pela antena, porque nao
+                // esta ali) deixava isValid falso para sempre, e a pessoa ficava
+                // presa na tela de corrigir a retirada sem ter o que corrigir.
                 const availableItems = {} as Record<string, string>;
-                for (const [_, value] of Object.entries(await GetAvailableItems(user) ?? {})) {
+                for (const [_, value] of Object.entries(await GetAvailableItemsByOrigin(user, ORIGEM_ARMARIO) ?? {})) {
                     availableItems[value.id] = value.state;
                     if (value.state == "required" && (itemsChanged[value.id] ?? 0) != -1) {
                         isValid = false;

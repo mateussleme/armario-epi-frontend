@@ -1,0 +1,8 @@
+/* O fundo aqui precisa acompanhar a paleta (theme/colors.ts, C.bg). Sem isso,
+   quando o conteudo de uma tela e mais alto que a janela, o que aparece na
+   sobra e o fundo padrao do navegador (escuro), e a tela fica com uma faixa
+   preta no final. */
+html, body {
+    margin: 0;
+    background: #EDEEEB;
+}

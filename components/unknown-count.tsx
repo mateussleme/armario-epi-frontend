@@ -3,6 +3,7 @@ import { InitiateCount, OpenDoor } from "@/api/controls";
 import { GetUnknown } from "@/api/item-data";
 import { Box, Flex, Text } from "@chakra-ui/react"
 import { useEffect, useState } from "react"
+import { C } from "@/theme/colors";
 
 export function UnknownCount() {
     const [count, setCount] = useState(0);
@@ -26,14 +27,14 @@ export function UnknownCount() {
         w="100%"
         px="2rem"
         py="1rem"
-        bg={"bg.subtle"}
+        bg={C.surface}
         borderWidth="0.1rem"
-        borderColor={"border.emphasized"}
+        borderColor={C.line}
         borderRadius="xl"
     >
         <Flex gap="4" justify="space-between" align="center">
-            <Text color="MenuText">Itens Novos</Text>
-            <Text textStyle="3xl">{count}</Text>
+            <Text color={C.sub}>Itens Novos</Text>
+            <Text textStyle="3xl" color={C.ink}>{count}</Text>
         </Flex>
     </Box>
 }

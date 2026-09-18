@@ -1,51 +1,48 @@
-import { GetUser, GetUsers } from "@/api/users";
-import { MenuItem } from "@/components/menu-item";
-import { UserItem } from "@/components/user-item";
-import { AbsoluteCenter, VStack, Text, AspectRatio, Image } from "@chakra-ui/react";
+import { GetUser } from "@/api/users";
+import { UserForm } from "@/components/user-form";
+import { Flex, VStack, Text } from "@chakra-ui/react";
 import { IconUserFilled } from "@tabler/icons-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { ViewTransition } from "react";
+import { C, MAX_W } from "@/theme/colors";
 
-export default async function User({ params }: { params: Promise<{ userId: string }> }) {
+export default async function EditUser({ params }: { params: Promise<{ userId: string }> }) {
+    await connection();
+
     const cookieStore = await cookies();
-    const realUser = cookieStore.get("user")?.value ?? "";
-    const userData = await GetUser(realUser);
+    const user = cookieStore.get("user")?.value ?? "";
+    const userData = await GetUser(user);
     if (!(userData?.admin ?? false)) {
         redirect("/");
     }
 
-    const user = await GetUser((await params).userId);
-    if (user == undefined) {
-        redirect("/");
+    const userId = (await params).userId;
+    const editedUser = await GetUser(decodeURIComponent(userId));
+    if (editedUser == undefined) {
+        redirect("/restricted/users");
     }
 
+    // Ver comentario em items/novo/page.tsx sobre o AbsoluteCenter.
     return (
-        <AbsoluteCenter bg="orange.subtle" w="100vw" h="100vh">
-            <VStack gap="3rem" w="80vw">
+        <Flex justify="center" bg={C.bg} w="100vw" minH="100vh" py="3rem" px="4">
+            <VStack gap="3rem" w="80vw" maxW={MAX_W}>
                 <VStack gap="1rem">
                     <ViewTransition name="mainIcon">
-                        <AspectRatio
-                            w="min(16vw, 16vh)"
-                            ratio={1}
-                            bg={"bg.info"}
-                            borderRadius={"xl"}
-                            borderColor={"border.emphasized"}
-                            borderWidth="0.1rem"
-                            overflow={"hidden"}
-                        >
-                            <Image src={user.imageUri} objectFit="cover" />
-                        </AspectRatio>
+                        <Text color={C.accent}>
+                            <IconUserFilled size={40} style={{ width: "min(10vw, 10vh)", height: "min(10vw, 10vh)" }} />
+                        </Text>
                     </ViewTransition>
                     <ViewTransition name="mainText">
-                        <Text textStyle="4xl" fontWeight="normal">{user.name}</Text>
+                        <Text textStyle="4xl" fontWeight="normal" color={C.ink}>Editar usuário</Text>
                     </ViewTransition>
                 </VStack>
 
                 <ViewTransition name="mainContent">
-                    <MenuItem action="back" override="/restricted/users" />
+                    <UserForm user={editedUser} />
                 </ViewTransition>
             </VStack>
-        </AbsoluteCenter>
+        </Flex>
     );
 }
