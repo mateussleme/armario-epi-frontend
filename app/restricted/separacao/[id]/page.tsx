@@ -24,14 +24,14 @@ export default async function Picking({ params }: { params: Promise<{ id: string
         redirect("/restricted/separacao");
     }
 
-    const solicitacao = await GetSolicitacao(id);
-    if (solicitacao == undefined) {
+    const requisicao = await GetSolicitacao(id);
+    if (requisicao == undefined) {
         redirect("/restricted/separacao");
     }
 
     const itens = await GetSolicitacaoItens(id);
 
-    const data = new Date(solicitacao.data).toLocaleString("pt-BR", {
+    const data = new Date(requisicao.data).toLocaleString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -39,14 +39,12 @@ export default async function Picking({ params }: { params: Promise<{ id: string
         minute: "2-digit",
     });
 
-    // Cabecalho curto de proposito: quem chegou aqui acabou de clicar na linha da
-    // Lista de Separacao, entao ja sabe de quem e o pedido e em que pe esta.
-    // Repetir isso aqui so empurraria a lista de itens para baixo, e com oito
-    // itens o cara ja comeca rolando a tela.
+    // Cabecalho curto: numero da requisicao e horario, que e o que o
+    // almoxarifado usa para saber se esta atrasado. Nome de quem pediu fica na
+    // lista, que e de onde a pessoa acabou de vir.
     //
-    // Pelo mesmo motivo nao ha cancelar aqui: quem cancela e o solicitante, e so
-    // enquanto a separacao nao comecou. Quem faz o picking nao desfaz o pedido
-    // de outra pessoa.
+    // Nao ha cancelar aqui: quem cancela e o requisitante, e so enquanto a
+    // separacao nao comecou. Quem faz o picking nao desfaz requisicao alheia.
     return (
         <Flex justify="center" bg={C.bg} w="100vw" minH="100vh" py="2rem" px="4">
             <VStack gap="1.5rem" w="90vw" maxW={MAX_W}>
@@ -56,7 +54,7 @@ export default async function Picking({ params }: { params: Promise<{ id: string
                             <IconChecklist size={28} />
                         </Text>
                         <Text textStyle="3xl" fontWeight="normal" color={C.ink}>
-                            Pedido {solicitacao.id}
+                            Requisição {requisicao.id}
                         </Text>
                         <Text textStyle="lg" color={C.sub}>{data}</Text>
                     </Flex>
@@ -65,7 +63,7 @@ export default async function Picking({ params }: { params: Promise<{ id: string
                 <ViewTransition name="mainContent">
                     {/* Quem abriu e marcou o primeiro item fica registrado como
                         responsavel pela separacao. */}
-                    <PickingList solicitacao={solicitacao} itens={itens} separador={user} />
+                    <PickingList requisicao={requisicao} itens={itens} separador={user} />
                 </ViewTransition>
             </VStack>
         </Flex>

@@ -1,7 +1,7 @@
 "use client"
 
 import { Box, Flex, Text } from "@chakra-ui/react"
-import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconMapPin, IconProps, IconRefresh, IconShoppingBag, IconUserFilled, IconUsersGroup, IconUserPlus, IconVideo, IconPlus, IconClipboardList, IconClipboardCheck } from "@tabler/icons-react"
+import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconMapPin, IconProps, IconRefresh, IconShoppingBag, IconUserFilled, IconUsersGroup, IconUserPlus, IconVideo, IconPlus, IconClipboardList, IconClipboardCheck, IconHandGrab } from "@tabler/icons-react"
 import { ForwardRefExoticComponent, RefAttributes, useState } from "react";
 import Link from "next/link";
 import { CloseDoor } from "@/api/controls";
@@ -52,6 +52,17 @@ const ACTION_MAP: Record<string, ActionData> = {
         backgroundActive: C.accentSoft,
         backgroundInactive: C.surface,
         borderActive: C.accent,
+    },
+    // Entrega: a fila do que ja foi separado e espera alguem buscar.
+    ["entrega"]: {
+        icon: IconHandGrab,
+        caption: "Entrega",
+        url: "/restricted/entrega",
+        authenticated: false,
+        iconColor: C.success,
+        backgroundActive: C.successSoft,
+        backgroundInactive: C.surface,
+        borderActive: C.success,
     },
     ["locais"]: {
     icon: IconMapPin,

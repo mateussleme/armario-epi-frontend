@@ -37,6 +37,7 @@ export default async function Restricted() {
                     <MenuItem action="groups" />
                     <MenuItem action="items" />
                     <MenuItem action="separacao" />
+                    <MenuItem action="entrega" />
                     <MenuItem action="fill" />
                     <MenuItem action="locais" />
                     <MenuItem action="leave" />

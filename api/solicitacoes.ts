@@ -6,12 +6,15 @@ export const STATUS_ABERTA = "aberta";
 export const STATUS_SEPARANDO = "separando";
 export const STATUS_AGUARDANDO = "aguardando_retirada";
 export const STATUS_CANCELADA = "cancelada";
+export const STATUS_ENTREGUE = "entregue";
 
 export type Solicitacao = {
     id: number;
     pessoa: string;
     pessoaNome: string;
     data: string;
+    // Hora limite para separar. A lista pinta a linha a partir disto.
+    separarAte: string;
     status: string;
     separador: string;
     dataSeparacao: string;
@@ -122,6 +125,20 @@ export async function SetItemSeparado(
     return response.ok;
 }
 
+// Efetiva a entrega. pessoa e quem o reconhecimento facial identificou: o
+// backend confere se e mesmo o requisitante antes de entregar.
+//
+// false quer dizer que a regra recusou (requisicao nao esta pronta, ou a pessoa
+// reconhecida nao e a que pediu), nao que deu erro de rede.
+export async function EntregarSolicitacao(id: number, pessoa: string) {
+    const response = await fetch(
+        API_URL + "/v1/solicitacoes/" + String(id) + "/entregar?pessoa=" + encodeURIComponent(pessoa),
+        { method: "POST" },
+    );
+
+    return response.ok;
+}
+
 // Cancelamento pelo solicitante. O backend recusa se o pedido nao for da pessoa
 // ou se a separacao ja comecou, entao a tela nao precisa checar isso: basta
 // mostrar o resultado.
@@ -148,6 +165,9 @@ export function statusLabel(status: string) {
     }
     if (status == STATUS_CANCELADA) {
         return "Cancelada";
+    }
+    if (status == STATUS_ENTREGUE) {
+        return "Entregue";
     }
     return status;
 }
