@@ -97,6 +97,9 @@ export async function RegisterRetirada(userId: string, productId: string, origem
 export type RetiradaType = {
     pessoa: string;
     produto: string;
+    // Vazio quando o produto foi excluido do cadastro depois da entrega.
+    produtoNome: string;
+    quantidade: number;
     data: string;
     origem: string;
 }

@@ -65,8 +65,17 @@ export async function CreateSolicitacao(pessoa: string, itens: NovoItem[]) {
 }
 
 // A Lista de Separacao. Sem status traz tudo que ainda esta em aberto.
-export async function GetSolicitacoes(status?: string) {
-    const query = status != undefined && status != "" ? "?status=" + encodeURIComponent(status) : "";
+// pessoa filtra as de um requisitante so, que e o que ele ve na propria tela de
+// Solicitacao. Sem pessoa, traz de todo mundo.
+export async function GetSolicitacoes(status?: string, pessoa?: string) {
+    const params = new URLSearchParams();
+    if (status != undefined && status != "") {
+        params.set("status", status);
+    }
+    if (pessoa != undefined && pessoa != "") {
+        params.set("pessoa", pessoa);
+    }
+    const query = params.toString() != "" ? "?" + params.toString() : "";
     const response = await fetch(API_URL + "/v1/solicitacoes/all" + query, { method: "GET" });
     if (!response.ok) {
         return [];

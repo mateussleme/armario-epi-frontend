@@ -33,7 +33,7 @@ export function ProductItem({ itemId, quantity, data }: { itemId: string, quanti
         detalhes.push(itemData.endereco);
     }
     if (quantity != undefined) {
-        detalhes.push(`${quantity} uni.`);
+        detalhes.push(`Qtde. ${quantity}`);
     }
 
     return <Link href={"/restricted/items/" + encodeURIComponent(itemId)} style={{ width: "100%" }}>

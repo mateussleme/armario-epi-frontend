@@ -1,4 +1,5 @@
-import { GetUser } from "@/api/users";
+import { GetRetiradas, GetUser } from "@/api/users";
+import { FichaEpi } from "@/components/ficha-epi";
 import { UserForm } from "@/components/user-form";
 import { Flex, VStack, Text } from "@chakra-ui/react";
 import { IconUserFilled } from "@tabler/icons-react";
@@ -24,6 +25,8 @@ export default async function EditUser({ params }: { params: Promise<{ userId: s
         redirect("/restricted/users");
     }
 
+    const retiradas = await GetRetiradas(editedUser.id);
+
     // Ver comentario em items/novo/page.tsx sobre o AbsoluteCenter.
     return (
         <Flex justify="center" bg={C.bg} w="100vw" minH="100vh" py="3rem" px="4">
@@ -40,7 +43,10 @@ export default async function EditUser({ params }: { params: Promise<{ userId: s
                 </VStack>
 
                 <ViewTransition name="mainContent">
-                    <UserForm user={editedUser} />
+                    <VStack gap="3rem" w="100%">
+                        <UserForm user={editedUser} />
+                        <FichaEpi retiradas={retiradas} />
+                    </VStack>
                 </ViewTransition>
             </VStack>
         </Flex>

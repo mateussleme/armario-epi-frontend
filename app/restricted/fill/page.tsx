@@ -1,4 +1,5 @@
-import { GetAllItems, GetItemData } from "@/api/item-data";
+import { GetItemData } from "@/api/item-data";
+import { GetSaved } from "@/api/controls";
 import { GetUser } from "@/api/users";
 import { InfoItem } from "@/components/info-item";
 import { MenuItem } from "@/components/menu-item";
@@ -24,14 +25,15 @@ export default async function Fill() {
     //
     // A busca e por codigo e descricao, nao por endereco: o endereco muda quando
     // o armario e reorganizado, e ninguem decora posicao.
+    const stock = (await GetSaved()) ?? {};
     const searchItems: SearchItem[] = [];
-    for (const item of await GetAllItems()) {
+    for (const item of Object.keys(stock)) {
         const data = await GetItemData(item);
         searchItems.push({
             id: item,
             terms: [item, data?.title ?? "", data?.description ?? ""].join(" "),
             sort: data?.title ?? item,
-            node: <InfoItem itemId={item} override={`/restricted/fill/${item}`} data={data} />,
+            node: <InfoItem itemId={item} override={`/restricted/fill/${item}`} data={data} quantity={stock[item]} showAddress />,
         });
     }
 

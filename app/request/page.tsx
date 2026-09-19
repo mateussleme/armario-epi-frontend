@@ -1,4 +1,6 @@
 import { GetUserItemsByOrigin } from "@/api/item-data";
+import { GetSolicitacoes } from "@/api/solicitacoes";
+import { MinhasRequisicoes } from "@/components/minhas-requisicoes";
 import { MenuItem } from "@/components/menu-item";
 import { RequestList } from "@/components/request-list";
 import { ORIGEM_ALMOXARIFADO } from "@/types/ItemData";
@@ -20,6 +22,9 @@ export default async function Request() {
     const result = await GetUserItemsByOrigin(user, ORIGEM_ALMOXARIFADO);
     const items = result?.items ?? [];
 
+    // O que a pessoa ja pediu e ainda nao recebeu.
+    const minhas = user != "" ? await GetSolicitacoes(undefined, user) : [];
+
     return (
         <Flex justify="center" bg={C.bg} w="100vw" minH="100vh" py="3rem" px="4" pb="8rem">
             <VStack gap="3rem" w="80vw" maxW={MAX_W}>
@@ -36,6 +41,7 @@ export default async function Request() {
 
                 <ViewTransition name="mainContent">
                     <VStack gap="2rem" w="100%">
+                        <MinhasRequisicoes requisicoes={minhas} userId={user} />
                         <RequestList items={items} detail={result?.detail} />
                         <MenuItem action="back" override="/" />
                     </VStack>
