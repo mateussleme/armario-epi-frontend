@@ -1,7 +1,7 @@
 "use client"
 
 import { Box, Flex, Text } from "@chakra-ui/react"
-import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconMapPin, IconProps, IconRefresh, IconShoppingBag, IconUserFilled, IconUsersGroup, IconUserPlus, IconVideo, IconPlus, IconClipboardList, IconClipboardCheck, IconHandGrab } from "@tabler/icons-react"
+import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconMapPin, IconProps, IconRefresh, IconShoppingBag, IconUserFilled, IconUsersGroup, IconUserPlus, IconVideo, IconPlus, IconClipboardList, IconClipboardCheck, IconHandGrab, IconFileDollar } from "@tabler/icons-react"
 import { ForwardRefExoticComponent, RefAttributes, useState } from "react";
 import Link from "next/link";
 import { CloseDoor } from "@/api/controls";
@@ -63,6 +63,18 @@ const ACTION_MAP: Record<string, ActionData> = {
         backgroundActive: C.successSoft,
         backgroundInactive: C.surface,
         borderActive: C.success,
+    },
+    // Cotacoes: a reposicao do estoque. Fica junto das filas de trabalho e nao
+    // dos cadastros, porque tambem e uma fila: o que precisa ser comprado.
+    ["cotacoes"]: {
+        icon: IconFileDollar,
+        caption: "Cotações",
+        url: "/restricted/cotacoes",
+        authenticated: false,
+        iconColor: C.warning,
+        backgroundActive: C.warningSoft,
+        backgroundInactive: C.surface,
+        borderActive: C.warning,
     },
     ["locais"]: {
     icon: IconMapPin,
