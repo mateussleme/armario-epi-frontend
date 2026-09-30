@@ -1,7 +1,7 @@
 "use client"
 
 import { Box, Flex, Text } from "@chakra-ui/react"
-import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconMapPin, IconProps, IconRefresh, IconShoppingBag, IconUserFilled, IconUsersGroup, IconUserPlus, IconVideo, IconPlus, IconClipboardList, IconClipboardCheck, IconHandGrab, IconFileDollar } from "@tabler/icons-react"
+import { IconArrowBackUp, IconDatabaseCog, IconForklift, IconListDetails, IconLogout, IconMapPin, IconProps, IconRefresh, IconShoppingBag, IconUserFilled, IconUsersGroup, IconUserPlus, IconVideo, IconPlus, IconClipboardList, IconClipboardCheck, IconHandGrab, IconFileDollar, IconShoppingCart, IconBuildingWarehouse } from "@tabler/icons-react"
 import { ForwardRefExoticComponent, RefAttributes, useState } from "react";
 import Link from "next/link";
 import { CloseDoor } from "@/api/controls";
@@ -75,6 +75,29 @@ const ACTION_MAP: Record<string, ActionData> = {
         backgroundActive: C.warningSoft,
         backgroundInactive: C.surface,
         borderActive: C.warning,
+    },
+    // Pedidos de compra: saem da cotacao, um por fornecedor.
+    ["pedidos"]: {
+        icon: IconShoppingCart,
+        caption: "Pedidos de Compra",
+        url: "/restricted/pedidos",
+        authenticated: false,
+        iconColor: C.success,
+        backgroundActive: C.successSoft,
+        backgroundInactive: C.surface,
+        borderActive: C.success,
+    },
+    // Estoque: e daqui que sai a reposicao automatica, quando o saldo chega no
+    // ponto de pedido.
+    ["estoque"]: {
+        icon: IconBuildingWarehouse,
+        caption: "Estoque",
+        url: "/restricted/estoque",
+        authenticated: false,
+        iconColor: C.sub,
+        backgroundActive: C.surfaceHover,
+        backgroundInactive: C.surface,
+        borderActive: C.line,
     },
     ["locais"]: {
     icon: IconMapPin,

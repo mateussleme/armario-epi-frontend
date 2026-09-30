@@ -5,6 +5,8 @@ import {
     CotacaoFornecedorItem,
     FornecedorNome,
     GetCotacao,
+    ItensVencidos,
+    SetVencedorFornecedor,
     QuantidadeDoItem,
     STATUS_FECHADA,
     SetDadosFornecedor,
@@ -102,6 +104,7 @@ export function CotacaoValores({ id }: { id: number }) {
             {atual.fornecedores.map((fornecedor) => {
                 const selecionado = fornecedor.fornecedor == ativo;
                 const totais = Totais(atual, fornecedor.fornecedor);
+                const vencidos = ItensVencidos(atual, fornecedor.fornecedor);
 
                 return <VStack
                     key={fornecedor.fornecedor}
@@ -126,6 +129,10 @@ export function CotacaoValores({ id }: { id: number }) {
                                 {totais.prazo > 0 ? ` · entrega em ${totais.prazo} dias` : ""}
                             </Text>
                         </Box>
+
+                        {vencidos > 0 ? <Badge bg={C.success} color="white" px="2" py="1" borderRadius="md" fontSize="0.75rem">
+                            VENCE {vencidos}
+                        </Badge> : undefined}
 
                         {totais.semValor > 0 ? <Badge bg={C.warningSoft} color={C.warningInk} px="2" py="1" borderRadius="md" fontSize="0.75rem">
                             FALTAM {totais.semValor}
@@ -218,6 +225,24 @@ export function CotacaoValores({ id }: { id: number }) {
                                 }}
                             />
                         </Flex>
+
+                        {/* Vencedor pelo fornecedor inteiro. A outra forma, item
+                            a item, continua no trofeu de cada linha. */}
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            bg={C.surface}
+                            color={vencidos > 0 ? C.danger : C.successInk}
+                            borderColor={vencidos > 0 ? C.line : C.success}
+                            onClick={() => {
+                                SetVencedorFornecedor(atual.id, fornecedor.fornecedor, vencidos == 0);
+                                recarregar();
+                            }}
+                        >
+                            {vencidos > 0
+                                ? `Tirar vencedor (${vencidos} ${vencidos == 1 ? "item" : "itens"})`
+                                : "Vencedor em todos os itens"}
+                        </Button>
                     </VStack> : undefined}
                 </VStack>
             })}

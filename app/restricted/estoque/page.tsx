@@ -1,22 +1,19 @@
 import { PodeEntrar } from "@/api/demo";
-import { CotacoesList } from "@/components/cotacoes-list";
-import { ItensACotar } from "@/components/itens-a-cotar";
+import { EstoqueList } from "@/components/estoque-list";
 import { MenuItem } from "@/components/menu-item";
 import { Box, Flex, Text, VStack } from "@chakra-ui/react";
-import { IconFileDollar } from "@tabler/icons-react";
+import { IconBuildingWarehouse } from "@tabler/icons-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ViewTransition } from "react";
 import { C, MAX_W } from "@/theme/colors";
 
-// Reposicao de estoque: a fila do que precisa ser cotado e as cotacoes montadas a
-// partir dela.
+// Estoque e ponto de pedido. A baixa aqui simula a saida que, no sistema de
+// verdade, vem da retirada do armario e da entrega da requisicao.
 //
-// Tudo aqui ainda e mockado, dentro do navegador: nao existe tabela de fornecedor
-// nem de cotacao no banco. A ideia e o Clairton ver o fluxo funcionando e opinar
-// antes de fechar o modelo. Ver api/cotacoes.ts.
-export default async function Cotacoes() {
+// Ainda mockado no navegador, como o resto do modulo de compras.
+export default async function Estoque() {
     await connection();
 
     const cookieStore = await cookies();
@@ -31,18 +28,16 @@ export default async function Cotacoes() {
                 <VStack gap="0.75rem">
                     <ViewTransition name="mainIcon">
                         <Text color={C.accent}>
-                            <IconFileDollar size={40} style={{ width: "min(8vw, 8vh)", height: "min(8vw, 8vh)" }} />
+                            <IconBuildingWarehouse size={40} style={{ width: "min(8vw, 8vh)", height: "min(8vw, 8vh)" }} />
                         </Text>
                     </ViewTransition>
                     <ViewTransition name="mainText">
-                        <Text textStyle="3xl" fontWeight="normal" color={C.ink}>Cotações</Text>
+                        <Text textStyle="3xl" fontWeight="normal" color={C.ink}>Estoque</Text>
                     </ViewTransition>
                 </VStack>
 
                 <ViewTransition name="mainContent">
                     <VStack gap="1.5rem" w="100%">
-                        {/* Aviso de tela de demonstracao. Sai quando o backend de
-                            cotacao existir. */}
                         <Box
                             w="100%"
                             px="1rem"
@@ -53,12 +48,13 @@ export default async function Cotacoes() {
                             borderRadius="lg"
                         >
                             <Text fontSize="0.9rem" color={C.warningInk}>
-                                Tela de demonstração: os dados são de exemplo e não ficam salvos no banco.
+                                Tela de demonstração: a baixa aqui simula a saída de estoque. O saldo que chega
+                                no ponto de pedido gera a reposição.
                             </Text>
                         </Box>
 
-                        <ItensACotar />
-                        <CotacoesList />
+                        <EstoqueList />
+                        <MenuItem action="cotacoes" />
                         <MenuItem action="back" override="/restricted" />
                     </VStack>
                 </ViewTransition>

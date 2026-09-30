@@ -1,4 +1,4 @@
-import { GetUser } from "@/api/users";
+import { PodeEntrar } from "@/api/demo";
 import { CotacaoValores } from "@/components/cotacao-valores";
 import { Flex, VStack } from "@chakra-ui/react";
 import { cookies } from "next/headers";
@@ -13,8 +13,7 @@ export default async function CotacaoValoresPage({ params }: { params: Promise<{
 
     const cookieStore = await cookies();
     const user = cookieStore.get("user")?.value ?? "";
-    const userData = await GetUser(user);
-    if (!(userData?.admin ?? false)) {
+    if (!(await PodeEntrar(user))) {
         redirect("/");
     }
 

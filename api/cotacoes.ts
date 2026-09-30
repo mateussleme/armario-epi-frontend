@@ -57,6 +57,8 @@ export type RequisicaoItem = {
     nomeConta: string;
     centroCusto: string;
     descricaoCentroCusto: string;
+    // Quem pediu. Vai junto ate o pedido de compra, como na tela dele.
+    solicitante: string;
     data: string;
     // Sai da fila quando entra numa cotacao.
     cotada: boolean;
@@ -67,7 +69,18 @@ export type Fornecedor = {
     codigo: string;
     razaoSocial: string;
     cnpj: string;
+    inscricaoEstadual: string;
+    endereco: string;
+    numero: string;
+    cidade: string;
+    estado: string;
+    cep: string;
+    telefone: string;
     contato: string;
+    email: string;
+    // Vao para o cabecalho do pedido quando ele e gerado.
+    condicaoPagamento: string;
+    transportadora: string;
 };
 
 // Item dentro da cotacao. Guarda de qual requisicao veio: uma linha agrupada
@@ -84,6 +97,9 @@ export type CotacaoItem = {
     nomeConta: string;
     centroCusto: string;
     descricaoCentroCusto: string;
+    // Quem pediu. Numa linha agrupada, os solicitantes das requisicoes que
+    // entraram nela.
+    solicitantes: string[];
     origens: string[];
 };
 
@@ -146,13 +162,17 @@ export type Cotacao = {
 };
 
 type Store = {
+    estoque: ProdutoEstoque[];
     requisicoes: RequisicaoItem[];
     fornecedores: Fornecedor[];
     cotacoes: Cotacao[];
+    pedidos: Pedido[];
     proximaRequisicao: number;
     proximaCotacao: number;
     proximoItem: number;
     proximoRegistro: number;
+    proximoPedido: number;
+    proximaReposicao: number;
 };
 
 export const EMPRESA_PADRAO = "Planta Q. Barras";
@@ -160,9 +180,30 @@ export const EMPRESA_PADRAO = "Planta Q. Barras";
 // Fornecedores das telas do Clairton. Continuam fixos ate ele mandar a lista
 // real da Clairton.
 const FORNECEDORES: Fornecedor[] = [
-    { codigo: "GAL", razaoSocial: "GALE FERRAMENTAS LTDA", cnpj: "", contato: "" },
-    { codigo: "VIK", razaoSocial: "SANDVIK COROMANT DO BRASIL INDUSTRIA E COMERCIO DE FERRAMENTAS LTDA", cnpj: "", contato: "" },
-    { codigo: "312", razaoSocial: "FF SOUZA COMERCIO LTDA", cnpj: "", contato: "" },
+    {
+        codigo: "GAL", razaoSocial: "GALE FERRAMENTAS LTDA",
+        cnpj: "11.222.333/0001-44", inscricaoEstadual: "90123456-78",
+        endereco: "Rua das Ferramentas", numero: "1200",
+        cidade: "Curitiba", estado: "PR", cep: "81000-000",
+        telefone: "(41) 3000-1000", contato: "Ricardo", email: "vendas@galeferramentas.com.br",
+        condicaoPagamento: "28 dias", transportadora: "FORNECEDOR",
+    },
+    {
+        codigo: "VIK", razaoSocial: "SANDVIK COROMANT DO BRASIL INDUSTRIA E COMERCIO DE FERRAMENTAS LTDA",
+        cnpj: "22.333.444/0001-55", inscricaoEstadual: "10234567-89",
+        endereco: "Avenida Industrial", numero: "455",
+        cidade: "São Paulo", estado: "SP", cep: "04500-000",
+        telefone: "(11) 4000-2000", contato: "Fernanda", email: "pedidos@sandvik.com.br",
+        condicaoPagamento: "35 dias", transportadora: "FORNECEDOR",
+    },
+    {
+        codigo: "312", razaoSocial: "FF SOUZA COMERCIO LTDA",
+        cnpj: "33.444.555/0001-66", inscricaoEstadual: "20345678-90",
+        endereco: "Rua do Comércio", numero: "87",
+        cidade: "Uberaba", estado: "MG", cep: "38000-000",
+        telefone: "(34) 3300-4400", contato: "Souza", email: "contato@ffsouza.com.br",
+        condicaoPagamento: "À vista", transportadora: "CIF",
+    },
 ];
 
 const CONTA_FERRAMENTAS = { conta: "4901", nomeConta: "FERRAMENTAS PARA DESENVOLVIMENTO" };
@@ -198,6 +239,9 @@ function requisicoesIniciais(): RequisicaoItem[] {
         ["161490", 4, "99999999", "PARAF. 5513 020-28", 3, "PÇ", 0, "GAL"],
     ];
 
+    // Solicitantes de exemplo, como aparecem na tela de pedidos dele.
+    const solicitantes = ["ALMOX.COMPRAS", "ATHOS.JANNUZZI", "MANUTENCAO"];
+
     return linhas.map((linha, indice) => {
         const [requisicao, numeroItem, produto, descricao, quantidade, unidade, valor, fornecedor] = linha;
         const ferramenta = requisicao == "161490";
@@ -216,29 +260,96 @@ function requisicoesIniciais(): RequisicaoItem[] {
             fornecedorUltimaCompra: fornecedor,
             conta: ferramenta ? CONTA_FERRAMENTAS.conta : "",
             nomeConta: ferramenta ? CONTA_FERRAMENTAS.nomeConta : "",
-            centroCusto: "",
-            descricaoCentroCusto: "",
+            centroCusto: ferramenta ? "1516" : "",
+            descricaoCentroCusto: ferramenta ? "FERRAMENTARIA" : "",
+            solicitante: solicitantes[indice % solicitantes.length],
             data: new Date(agora - (linhas.length - indice) * dia).toISOString(),
             cotada: false,
         };
     });
 }
 
-const CHAVE = "cotacoes-mock-v2";
+// ---------------------------------------------------------------------------
+// Estoque e ponto de pedido
+// ---------------------------------------------------------------------------
+//
+// A outra porta de entrada da reposicao: quando a saida de estoque derruba o
+// saldo ate o ponto de pedido, o item entra sozinho na lista a cotar. Se o item
+// tem fornecedor exclusivo, nem passa por cotacao: vira pedido de compra direto.
+//
+// No sistema de verdade quem chama a baixa e a retirada do armario e a entrega
+// da requisicao. Aqui a tela de Estoque faz isso na mao, para dar para
+// demonstrar a regra sem esperar alguem retirar EPI.
+
+export type ProdutoEstoque = {
+    codigo: string;
+    descricao: string;
+    unidade: string;
+    saldo: number;
+    // Saldo que dispara a reposicao.
+    pontoPedido: number;
+    // Quanto comprar quando dispara.
+    loteReposicao: number;
+    fornecedorPrincipal?: string;
+    // Fornecedor unico do item: nao ha o que cotar, entao a baixa gera pedido.
+    exclusivo: boolean;
+    ultimoValor: number;
+};
+
+function estoqueInicial(): ProdutoEstoque[] {
+    return [
+        {
+            codigo: "02990315", descricao: "CABO PP 4X 10 MM", unidade: "PC",
+            saldo: 120, pontoPedido: 50, loteReposicao: 200,
+            fornecedorPrincipal: "312", exclusivo: true, ultimoValor: 18.21,
+        },
+        {
+            codigo: "02630002", descricao: "Cartucho de Tinta HP 122 XL Preto", unidade: "UNI",
+            saldo: 12, pontoPedido: 6, loteReposicao: 20,
+            fornecedorPrincipal: "312", exclusivo: false, ultimoValor: 105,
+        },
+        {
+            codigo: "05994621", descricao: "GRANALHA S-70", unidade: "PC",
+            saldo: 800, pontoPedido: 400, loteReposicao: 1000,
+            fornecedorPrincipal: "GAL", exclusivo: false, ultimoValor: 2.7,
+        },
+        {
+            codigo: "05280498", descricao: "CONE MAS BT30-F-022-040-063", unidade: "PC",
+            saldo: 8, pontoPedido: 4, loteReposicao: 10,
+            fornecedorPrincipal: "VIK", exclusivo: true, ultimoValor: 248,
+        },
+        {
+            codigo: "05511841", descricao: "PN 797/1-2-3 126", unidade: "PÇ",
+            saldo: 30, pontoPedido: 15, loteReposicao: 40,
+            fornecedorPrincipal: undefined, exclusivo: false, ultimoValor: 118,
+        },
+        {
+            codigo: "03726157", descricao: "CINTA MAGNÉTICA 60cm", unidade: "PÇ",
+            saldo: 10, pontoPedido: 8, loteReposicao: 20,
+            fornecedorPrincipal: "GAL", exclusivo: false, ultimoValor: 0,
+        },
+    ];
+}
+
+const CHAVE = "cotacoes-mock-v5";
 
 let store: Store | undefined = undefined;
 
 function inicial(): Store {
     const requisicoes = requisicoesIniciais();
     return {
+        estoque: estoqueInicial(),
         requisicoes,
         fornecedores: FORNECEDORES,
         cotacoes: [],
+        pedidos: [],
         proximaRequisicao: requisicoes.length + 1,
         proximaCotacao: 1,
         proximoItem: 1,
         // Comeca perto do numero da planilha dele so para parecer com o real.
         proximoRegistro: 94244,
+        proximoPedido: 1,
+        proximaReposicao: 1,
     };
 }
 
@@ -256,6 +367,12 @@ function carregar(): Store {
             // Fornecedor nao e editavel na demonstracao: vem sempre da lista
             // fixa, para nao ficar preso a um sessionStorage antigo.
             store.fornecedores = FORNECEDORES;
+            // Store gravado por uma versao anterior nao tem pedidos nem
+            // estoque.
+            store.pedidos = store.pedidos ?? [];
+            store.proximoPedido = store.proximoPedido ?? 1;
+            store.estoque = store.estoque ?? estoqueInicial();
+            store.proximaReposicao = store.proximaReposicao ?? 1;
             return store;
         }
     } catch {
@@ -328,6 +445,7 @@ export function AddRequisicao(dados: {
         nomeConta: "",
         centroCusto: "",
         descricaoCentroCusto: "",
+        solicitante: "ALMOX.COMPRAS",
         data: new Date().toISOString(),
         cotada: false,
     };
@@ -349,6 +467,7 @@ export function RemoveRequisicao(id: number) {
 export type LinhaACotar = {
     // Ids das linhas de requisicao que entraram nesta linha.
     ids: number[];
+    solicitantes: string[];
     produto: string;
     descricao: string;
     quantidade: number;
@@ -366,6 +485,7 @@ export type LinhaACotar = {
 function paraLinha(item: RequisicaoItem): LinhaACotar {
     return {
         ids: [item.id],
+        solicitantes: [item.solicitante],
         produto: item.produto,
         descricao: item.descricao,
         quantidade: item.quantidade,
@@ -399,6 +519,9 @@ export function Agrupar(itens: RequisicaoItem[], agrupar: boolean): LinhaACotar[
         igual.ids.push(item.id);
         igual.quantidade = igual.quantidade + item.quantidade;
         igual.origens.push(item.requisicao + "/" + String(item.numeroItem));
+        if (!igual.solicitantes.includes(item.solicitante)) {
+            igual.solicitantes.push(item.solicitante);
+        }
         if (igual.fornecedorUltimaCompra == undefined) {
             igual.fornecedorUltimaCompra = item.fornecedorUltimaCompra;
         }
@@ -425,6 +548,7 @@ export function CriarCotacao(linhas: LinhaACotar[], fornecedores: string[], usua
             nomeConta: linha.nomeConta,
             centroCusto: linha.centroCusto,
             descricaoCentroCusto: linha.descricaoCentroCusto,
+            solicitantes: linha.solicitantes,
             origens: linha.origens,
         };
         return item;
@@ -490,7 +614,7 @@ export function GetCotacao(id: number): Cotacao | undefined {
 function clonar(cotacao: Cotacao): Cotacao {
     return {
         ...cotacao,
-        itens: cotacao.itens.map((i) => ({ ...i, origens: [...i.origens] })),
+        itens: cotacao.itens.map((i) => ({ ...i, origens: [...i.origens], solicitantes: [...i.solicitantes] })),
         fornecedores: cotacao.fornecedores.map((f) => ({ ...f, itens: copia(f.itens) })),
     };
 }
@@ -691,6 +815,50 @@ export function SetVencedor(cotacaoId: number, codigo: string, itemId: number, v
     salvar();
 }
 
+// Vencedor pelo fornecedor inteiro: marca todos os itens dele de uma vez, e
+// cada item marcado sai dos outros fornecedores. E a segunda forma que o
+// Clairton pediu, ao lado da marcacao item a item.
+//
+// Item sem preco fica de fora: nao da para comprar de quem nao cotou.
+export function SetVencedorFornecedor(cotacaoId: number, codigo: string, vencedor: boolean) {
+    const cotacao = achar(cotacaoId);
+    const alvo = cotacao?.fornecedores.find((f) => f.fornecedor == codigo);
+    if (cotacao == undefined || alvo == undefined) {
+        return;
+    }
+
+    for (const linha of alvo.itens) {
+        if (vencedor && linha.valorUnitario <= 0) {
+            continue;
+        }
+
+        for (const fornecedor of cotacao.fornecedores) {
+            const outra = fornecedor.itens.find((i) => i.item == linha.item);
+            if (outra != undefined) {
+                outra.vencedor = vencedor && fornecedor.fornecedor == codigo;
+            }
+        }
+    }
+    salvar();
+}
+
+// Quantos itens o fornecedor esta vencendo. A tela usa para mostrar o resumo
+// antes de gerar os pedidos.
+export function ItensVencidos(cotacao: Cotacao, codigo: string): number {
+    const fornecedor = cotacao.fornecedores.find((f) => f.fornecedor == codigo);
+    return fornecedor != undefined ? fornecedor.itens.filter((i) => i.vencedor).length : 0;
+}
+
+// Itens da cotacao que ainda nao tem fornecedor vencedor. Enquanto houver, a
+// geracao de pedidos deixa esses itens de fora.
+export function ItensSemVencedor(cotacao: Cotacao): number {
+    return cotacao.itens.filter(
+        (item) => !cotacao.fornecedores.some(
+            (f) => f.itens.some((i) => i.item == item.id && i.vencedor),
+        ),
+    ).length;
+}
+
 export function QuantidadeDoItem(cotacao: Cotacao, itemId: number): number {
     return cotacao.itens.find((i) => i.id == itemId)?.quantidade ?? 0;
 }
@@ -774,6 +942,705 @@ export function ItensSemValor(cotacao: Cotacao, codigo: string): number {
     return Totais(cotacao, codigo).semValor;
 }
 
+// ---------------------------------------------------------------------------
+// Pedido de compra
+// ---------------------------------------------------------------------------
+//
+// Depois que os vencedores estao definidos, a cotacao gera os pedidos. Um
+// pedido por fornecedor, porque compra se faz com um fornecedor de cada vez:
+// uma cotacao com dois vencedores vira dois pedidos.
+//
+// Os status sao um chute ate a tela de referencia dele chegar: aberto (gerado,
+// ainda nao enviado), emitido (mandado para o fornecedor) e cancelado.
+
+export const STATUS_PEDIDO_ABERTO = "A";
+export const STATUS_PEDIDO_EMITIDO = "E";
+export const STATUS_PEDIDO_CANCELADO = "C";
+
+export const STATUS_PEDIDO = [
+    { value: STATUS_PEDIDO_ABERTO, label: "Aberto" },
+    { value: STATUS_PEDIDO_EMITIDO, label: "Emitido" },
+    { value: STATUS_PEDIDO_CANCELADO, label: "Cancelado" },
+];
+
+export function statusPedidoLabel(status: string) {
+    return STATUS_PEDIDO.find((s) => s.value == status)?.label ?? status;
+}
+
+// O item do pedido nasce da linha vencedora da cotacao, com o preco e os
+// impostos ja congelados: mexer na cotacao depois nao muda o pedido.
+export type PedidoItem = {
+    id: number;
+    numeroItem: number;
+    produto: string;
+    descricao: string;
+    complemento: string;
+    quantidade: number;
+    unidade: string;
+    valorUnitario: number;
+    ipi: number;
+    icms: number;
+    pis: number;
+    cofins: number;
+    icmsSt: number;
+    difal: number;
+    fatorImpostos: number;
+    leadTimeItem: number;
+    leadTimeTransporte: number;
+    fabricante: string;
+    conta: string;
+    nomeConta: string;
+    centroCusto: string;
+    descricaoCentroCusto: string;
+    // Quem pediu e quem comprou, como nas duas primeiras colunas do grid dele.
+    solicitante: string;
+    comprador: string;
+    // Controle do envio ao fornecedor, tambem colunas da tela dele.
+    enviado: boolean;
+    impresso: boolean;
+    // Quanto ja foi recebido. O que falta e o saldo do pedido.
+    recebido: number;
+    // De quais requisicoes de compra o item veio, herdado da cotacao.
+    origens: string[];
+};
+
+export type Pedido = {
+    id: number;
+    numero: string;
+    // Id interno, separado do numero visivel, como o Id. Pedido da tela dele.
+    idPedido: string;
+    empresa: string;
+    fornecedor: string;
+    // Cotacao de origem, para dar para voltar nela.
+    cotacao: number;
+    cotacaoNumero: string;
+    status: string;
+    criacao: string;
+    usuario: string;
+    condicaoPagamento: string;
+    transportadora: string;
+    tipoFrete: number;
+    freteFornecedor: number;
+    freteMk: number;
+    desconto: number;
+    observacao: string;
+    itens: PedidoItem[];
+};
+
+function clonarPedido(pedido: Pedido): Pedido {
+    return {
+        ...pedido,
+        itens: pedido.itens.map((i) => ({ ...i, origens: [...i.origens] })),
+    };
+}
+
+// Gera os pedidos dos itens marcados como vencedores, um por fornecedor.
+//
+// Fornecedor que ja tem pedido desta cotacao e pulado, em vez de gerar de novo:
+// pedido emitido nao pode ser reescrito porque alguem clicou duas vezes. Para
+// refazer, cancele o pedido antes.
+export function GerarPedidos(cotacaoId: number, usuario: string): Pedido[] {
+    const s = carregar();
+    const cotacao = achar(cotacaoId);
+    if (cotacao == undefined) {
+        return [];
+    }
+
+    const gerados: Pedido[] = [];
+
+    for (const fornecedor of cotacao.fornecedores) {
+        const vencedores = fornecedor.itens.filter((i) => i.vencedor);
+        if (vencedores.length == 0) {
+            continue;
+        }
+
+        const jaTem = s.pedidos.some(
+            (p) => p.cotacao == cotacaoId
+                && p.fornecedor == fornecedor.fornecedor
+                && p.status != STATUS_PEDIDO_CANCELADO,
+        );
+        if (jaTem) {
+            continue;
+        }
+
+        const itens: PedidoItem[] = [];
+        for (const linha of vencedores) {
+            const item = cotacao.itens.find((i) => i.id == linha.item);
+            if (item == undefined) {
+                continue;
+            }
+
+            itens.push({
+                id: item.id,
+                numeroItem: itens.length + 1,
+                produto: item.produto,
+                descricao: item.descricao,
+                complemento: item.complemento,
+                quantidade: item.quantidade,
+                unidade: item.unidade,
+                valorUnitario: linha.valorUnitario,
+                ipi: linha.ipi,
+                icms: linha.icms,
+                pis: linha.pis,
+                cofins: linha.cofins,
+                icmsSt: linha.icmsSt,
+                difal: linha.difal,
+                fatorImpostos: linha.fatorImpostos,
+                leadTimeItem: linha.leadTimeItem,
+                leadTimeTransporte: linha.leadTimeTransporte,
+                fabricante: linha.fabricante,
+                conta: item.conta,
+                nomeConta: item.nomeConta,
+                centroCusto: item.centroCusto,
+                descricaoCentroCusto: item.descricaoCentroCusto,
+                solicitante: item.solicitantes.join(" + "),
+                comprador: usuario != "" ? usuario : cotacao.usuario,
+                enviado: false,
+                impresso: false,
+                recebido: 0,
+                origens: [...item.origens],
+            });
+        }
+
+        if (itens.length == 0) {
+            continue;
+        }
+
+        const cadastro = s.fornecedores.find((f) => f.codigo == fornecedor.fornecedor);
+
+        const pedido: Pedido = {
+            id: s.proximoPedido,
+            numero: String(265600 + s.proximoPedido),
+            idPedido: String(267100 + s.proximoPedido),
+            empresa: cotacao.empresa,
+            fornecedor: fornecedor.fornecedor,
+            cotacao: cotacao.id,
+            cotacaoNumero: cotacao.numero,
+            status: STATUS_PEDIDO_ABERTO,
+            criacao: new Date().toISOString(),
+            usuario: usuario != "" ? usuario : cotacao.usuario,
+            // Frete, desconto e condicao de pagamento vem da proposta daquele
+            // fornecedor: foi o que ele ofereceu na cotacao. Sem proposta, cai
+            // para o que esta no cadastro dele.
+            condicaoPagamento: fornecedor.condicaoPagamento != ""
+                ? fornecedor.condicaoPagamento
+                : cadastro?.condicaoPagamento ?? "",
+            transportadora: cadastro?.transportadora ?? "",
+            tipoFrete: fornecedor.tipoFrete,
+            freteFornecedor: fornecedor.freteFornecedor,
+            freteMk: fornecedor.freteMk,
+            desconto: fornecedor.desconto,
+            observacao: "",
+            itens,
+        };
+
+        s.proximoPedido = s.proximoPedido + 1;
+        s.pedidos.push(pedido);
+        gerados.push(clonarPedido(pedido));
+    }
+
+    // Cotacao que ja virou pedido esta encerrada. Reabrir continua possivel pelo
+    // status, se ele quiser mexer depois.
+    if (gerados.length > 0 && ItensSemVencedor(cotacao) == 0) {
+        cotacao.status = STATUS_FECHADA;
+    }
+
+    salvar();
+    return gerados;
+}
+
+export function ListPedidos(): Pedido[] {
+    return carregar().pedidos.map(clonarPedido).reverse();
+}
+
+export function ListPedidosDaCotacao(cotacaoId: number): Pedido[] {
+    return carregar().pedidos.filter((p) => p.cotacao == cotacaoId).map(clonarPedido);
+}
+
+export function GetPedido(id: number): Pedido | undefined {
+    const pedido = carregar().pedidos.find((p) => p.id == id);
+    return pedido != undefined ? clonarPedido(pedido) : undefined;
+}
+
+export function SetPedidoCabecalho(id: number, dados: Partial<Pedido>) {
+    const pedido = carregar().pedidos.find((p) => p.id == id);
+    if (pedido == undefined) {
+        return;
+    }
+
+    Object.assign(pedido, dados);
+    salvar();
+}
+
+export function SetPedidoItem(pedidoId: number, itemId: number, dados: Partial<PedidoItem>) {
+    const item = carregar().pedidos.find((p) => p.id == pedidoId)?.itens.find((i) => i.id == itemId);
+    if (item == undefined) {
+        return;
+    }
+
+    Object.assign(item, dados);
+    salvar();
+}
+
+// Pesquisa avancada por item: acha os pedidos que tem aquele produto, sem
+// precisar saber de qual fornecedor ele e.
+//
+// Devolve o pedido inteiro mais os ids dos itens que casaram, porque o item
+// procurado costuma estar no meio de varios outros e a tela precisa destaca-lo.
+export type ResultadoBusca = {
+    pedido: Pedido;
+    encontrados: number[];
+};
+
+function normalizarBusca(valor: string): string {
+    return valor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+export function BuscarPedidosPorItem(texto: string): ResultadoBusca[] {
+    const palavras = normalizarBusca(texto.trim()).split(/\s+/).filter((p) => p != "");
+    if (palavras.length == 0) {
+        return [];
+    }
+
+    const resultados: ResultadoBusca[] = [];
+    for (const pedido of carregar().pedidos) {
+        const encontrados: number[] = [];
+        for (const item of pedido.itens) {
+            // Codigo e descricao, que e o que ele pediu para poder procurar.
+            const termos = normalizarBusca(item.produto + " " + item.descricao + " " + item.complemento);
+            if (palavras.every((palavra) => termos.includes(palavra))) {
+                encontrados.push(item.id);
+            }
+        }
+
+        if (encontrados.length > 0) {
+            resultados.push({ pedido: clonarPedido(pedido), encontrados });
+        }
+    }
+
+    return resultados.reverse();
+}
+
+export function RemovePedidoItem(pedidoId: number, itemId: number) {
+    const pedido = carregar().pedidos.find((p) => p.id == pedidoId);
+    if (pedido == undefined) {
+        return;
+    }
+
+    pedido.itens = pedido.itens.filter((i) => i.id != itemId);
+    salvar();
+}
+
+export type TotaisPedido = {
+    produtos: number;
+    impostos: number;
+    ipi: number;
+    icms: number;
+    icmsSt: number;
+    desconto: number;
+    frete: number;
+    total: number;
+    prazo: number;
+    // Valor do que ainda nao foi recebido, como o "Total do saldo" da tela dele.
+    saldo: number;
+};
+
+export function PedidoTotais(pedido: Pedido): TotaisPedido {
+    const totais: TotaisPedido = {
+        produtos: 0, impostos: 0, ipi: 0, icms: 0, icmsSt: 0,
+        desconto: pedido.desconto, frete: pedido.freteFornecedor + pedido.freteMk,
+        total: 0, prazo: 0, saldo: 0,
+    };
+
+    for (const item of pedido.itens) {
+        const total = item.valorUnitario * item.quantidade;
+        totais.produtos = totais.produtos + total;
+        totais.impostos = totais.impostos
+            + total * (item.ipi + item.fatorImpostos) / 100 + item.icmsSt + item.difal;
+        totais.ipi = totais.ipi + total * item.ipi / 100;
+        totais.icms = totais.icms + total * item.icms / 100;
+        totais.icmsSt = totais.icmsSt + item.icmsSt;
+
+        const falta = item.quantidade - item.recebido;
+        if (falta > 0) {
+            totais.saldo = totais.saldo + falta * item.valorUnitario;
+        }
+
+        const prazo = item.leadTimeItem + item.leadTimeTransporte;
+        if (prazo > totais.prazo) {
+            totais.prazo = prazo;
+        }
+    }
+
+    totais.total = totais.produtos + totais.impostos + totais.frete - totais.desconto;
+    return totais;
+}
+
+// Planilha do pedido, no mesmo formato da cotacao: uma linha por item.
+export function PedidoCsv(pedido: Pedido): string {
+    const colunas = [
+        "Item", "Descrição", "Complemento", "Qt", "Unidade", "Unitário",
+        "IPI%", "ICMS%", "PIS%", "COFINS%", "ICMS-ST (Valor)", "DIFAL (Valor)",
+        "Fator Impostos %", "Valor Total", "LeadTime Item", "LeadTime Transporte",
+        "Fabricante", "Conta", "Centro de Custo", "Requisições",
+    ];
+
+    function num(valor: number): string {
+        return String(valor).replace(".", ",");
+    }
+
+    function campo(valor: string): string {
+        if (valor.includes(";") || valor.includes("\"") || valor.includes("\n")) {
+            return "\"" + valor.replace(/"/g, "\"\"") + "\"";
+        }
+        return valor;
+    }
+
+    const linhas: string[] = [
+        "sep=;",
+        "PEDIDO : " + pedido.numero + " - " + FornecedorCompleto(pedido.fornecedor),
+        "Cotação de origem : " + pedido.cotacaoNumero,
+        "",
+        colunas.join(";"),
+    ];
+
+    for (const item of pedido.itens) {
+        linhas.push([
+            item.produto,
+            item.descricao,
+            item.complemento,
+            num(item.quantidade),
+            item.unidade,
+            num(item.valorUnitario),
+            num(item.ipi),
+            num(item.icms),
+            num(item.pis),
+            num(item.cofins),
+            num(item.icmsSt),
+            num(item.difal),
+            num(item.fatorImpostos),
+            num(item.valorUnitario * item.quantidade),
+            String(item.leadTimeItem),
+            String(item.leadTimeTransporte),
+            item.fabricante,
+            item.conta,
+            item.centroCusto,
+            item.origens.join(" "),
+        ].map(campo).join(";"));
+    }
+
+    return linhas.join("\r\n");
+}
+
+// ---------------------------------------------------------------------------
+// Movimentacao de estoque e reposicao automatica
+// ---------------------------------------------------------------------------
+
+export function ListEstoque(): ProdutoEstoque[] {
+    return copia(carregar().estoque);
+}
+
+export function GetProdutoEstoque(codigo: string): ProdutoEstoque | undefined {
+    const produto = carregar().estoque.find((p) => p.codigo == codigo);
+    return produto != undefined ? { ...produto } : undefined;
+}
+
+// O que a baixa provocou. A tela usa para contar o que aconteceu, em vez de a
+// pessoa ter que ir procurar na outra tela.
+export type ResultadoBaixa = {
+    ok: boolean;
+    saldo: number;
+    mensagem: string;
+    // Preenchido quando a baixa criou item na lista a cotar.
+    requisicao?: RequisicaoItem;
+    // Preenchido quando o item tem fornecedor exclusivo e virou pedido direto.
+    pedido?: Pedido;
+};
+
+// Prefixo das linhas que nasceram do ponto de pedido, para separar do que veio
+// de requisicao de compra digitada.
+const PREFIXO_REPOSICAO = "EST-";
+
+// Ja existe reposicao em andamento para este produto? Sem isso, cada baixa
+// abaixo do ponto de pedido criaria uma linha nova, e a lista a cotar encheria
+// de repeticao do mesmo item.
+//
+// So conta reposicao: uma requisicao de compra que alguem digitou para o mesmo
+// produto e outra necessidade, e nao substitui a reposicao do estoque.
+function temReposicaoAberta(s: Store, codigo: string): boolean {
+    const naFila = s.requisicoes.some(
+        (r) => r.produto == codigo && !r.cotada && r.requisicao.startsWith(PREFIXO_REPOSICAO),
+    );
+    const emCotacao = s.cotacoes.some(
+        (c) => c.status != STATUS_FECHADA && c.itens.some(
+            (i) => i.produto == codigo && i.origens.some((o) => o.startsWith(PREFIXO_REPOSICAO)),
+        ),
+    );
+    // Pedido conta sempre: se ja tem compra em andamento daquele item, de onde
+    // quer que ela tenha vindo, nao ha por que pedir de novo.
+    const emPedido = s.pedidos.some(
+        (p) => p.status != STATUS_PEDIDO_CANCELADO && p.itens.some((i) => i.produto == codigo),
+    );
+
+    return naFila || emCotacao || emPedido;
+}
+
+// Saida de estoque. No sistema de verdade quem chama isto e a retirada do
+// armario e a entrega da requisicao; aqui a tela de Estoque chama na mao.
+export function BaixarEstoque(codigo: string, quantidade: number, usuario: string): ResultadoBaixa {
+    const s = carregar();
+    const produto = s.estoque.find((p) => p.codigo == codigo);
+    if (produto == undefined) {
+        return { ok: false, saldo: 0, mensagem: "Produto não encontrado." };
+    }
+
+    if (quantidade <= 0) {
+        return { ok: false, saldo: produto.saldo, mensagem: "Informe a quantidade." };
+    }
+
+    // Saldo nao fica negativo: a baixa leva o que tem.
+    const saiu = Math.min(quantidade, produto.saldo);
+    produto.saldo = produto.saldo - saiu;
+
+    if (produto.saldo > produto.pontoPedido) {
+        salvar();
+        return {
+            ok: true,
+            saldo: produto.saldo,
+            mensagem: `Saíram ${decimal(saiu)} ${produto.unidade}. Saldo ${decimal(produto.saldo)}, acima do ponto de pedido.`,
+        };
+    }
+
+    if (temReposicaoAberta(s, produto.codigo)) {
+        salvar();
+        return {
+            ok: true,
+            saldo: produto.saldo,
+            mensagem: `Saldo ${decimal(produto.saldo)}, no ponto de pedido. Já existe reposição em andamento para este item.`,
+        };
+    }
+
+    // Fornecedor exclusivo: nao ha o que cotar, entao a baixa gera o pedido de
+    // compra direto. Foi o caso que o Clairton levantou.
+    if (produto.exclusivo && produto.fornecedorPrincipal != undefined) {
+        const pedido = criarPedidoDireto(s, produto, usuario);
+        salvar();
+        return {
+            ok: true,
+            saldo: produto.saldo,
+            pedido,
+            mensagem: `Saldo ${decimal(produto.saldo)}, no ponto de pedido. Fornecedor exclusivo: gerado o pedido ${pedido.numero}.`,
+        };
+    }
+
+    const requisicao = criarPendenciaReposicao(s, produto);
+    salvar();
+    return {
+        ok: true,
+        saldo: produto.saldo,
+        requisicao,
+        mensagem: `Saldo ${decimal(produto.saldo)}, no ponto de pedido. Item enviado para a lista a cotar (${requisicao.requisicao}).`,
+    };
+}
+
+// Entrada de estoque, so para dar para repetir a demonstracao sem recarregar
+// tudo.
+export function EntrarEstoque(codigo: string, quantidade: number): number {
+    const produto = carregar().estoque.find((p) => p.codigo == codigo);
+    if (produto == undefined || quantidade <= 0) {
+        return 0;
+    }
+
+    produto.saldo = produto.saldo + quantidade;
+    salvar();
+    return produto.saldo;
+}
+
+// A linha que a reposicao automatica joga na lista a cotar. Nasce do estoque, e
+// nao de uma requisicao de compra digitada, entao o numero leva EST na frente
+// para dar para saber de onde veio.
+function criarPendenciaReposicao(s: Store, produto: ProdutoEstoque): RequisicaoItem {
+    const linha: RequisicaoItem = {
+        id: s.proximaRequisicao,
+        requisicao: PREFIXO_REPOSICAO + String(1000 + s.proximaReposicao),
+        empresa: EMPRESA_PADRAO,
+        numeroItem: 1,
+        produto: produto.codigo,
+        descricao: produto.descricao,
+        complemento: "",
+        quantidade: produto.loteReposicao,
+        unidade: produto.unidade,
+        valorUltimaCompra: produto.ultimoValor,
+        fornecedorUltimaCompra: produto.fornecedorPrincipal,
+        conta: "",
+        nomeConta: "",
+        centroCusto: "",
+        descricaoCentroCusto: "",
+        solicitante: "ESTOQUE",
+        data: new Date().toISOString(),
+        cotada: false,
+    };
+
+    s.proximaRequisicao = s.proximaRequisicao + 1;
+    s.proximaReposicao = s.proximaReposicao + 1;
+    s.requisicoes.push(linha);
+    return linha;
+}
+
+// Pedido sem cotacao, do item de fornecedor exclusivo. O preco e o da ultima
+// compra: e o unico que existe ate o fornecedor responder.
+function criarPedidoDireto(s: Store, produto: ProdutoEstoque, usuario: string): Pedido {
+    const cadastro = s.fornecedores.find((f) => f.codigo == produto.fornecedorPrincipal);
+
+    const pedido: Pedido = {
+        id: s.proximoPedido,
+        numero: String(265600 + s.proximoPedido),
+        idPedido: String(267100 + s.proximoPedido),
+        empresa: EMPRESA_PADRAO,
+        fornecedor: produto.fornecedorPrincipal ?? "",
+        // Sem cotacao de origem: veio direto do ponto de pedido.
+        cotacao: 0,
+        cotacaoNumero: "",
+        status: STATUS_PEDIDO_ABERTO,
+        criacao: new Date().toISOString(),
+        usuario: usuario != "" ? usuario : "ESTOQUE",
+        condicaoPagamento: cadastro?.condicaoPagamento ?? "",
+        transportadora: cadastro?.transportadora ?? "",
+        tipoFrete: FRETE_CIF,
+        freteFornecedor: 0,
+        freteMk: 0,
+        desconto: 0,
+        observacao: "Reposição automática: saldo no ponto de pedido, fornecedor exclusivo.",
+        itens: [{
+            id: s.proximoItem,
+            numeroItem: 1,
+            produto: produto.codigo,
+            descricao: produto.descricao,
+            complemento: "",
+            quantidade: produto.loteReposicao,
+            unidade: produto.unidade,
+            valorUnitario: produto.ultimoValor,
+            ipi: 0, icms: 0, pis: 0, cofins: 0, icmsSt: 0, difal: 0, fatorImpostos: 0,
+            leadTimeItem: 0,
+            leadTimeTransporte: 0,
+            fabricante: "",
+            conta: "",
+            nomeConta: "",
+            centroCusto: "",
+            descricaoCentroCusto: "",
+            solicitante: "ESTOQUE",
+            comprador: usuario != "" ? usuario : "ESTOQUE",
+            enviado: false,
+            impresso: false,
+            recebido: 0,
+            origens: [PREFIXO_REPOSICAO + String(1000 + s.proximaReposicao)],
+        }],
+    };
+
+    s.proximoItem = s.proximoItem + 1;
+    s.proximoPedido = s.proximoPedido + 1;
+    s.proximaReposicao = s.proximaReposicao + 1;
+    s.pedidos.push(pedido);
+    return clonarPedido(pedido);
+}
+
+// ---------------------------------------------------------------------------
+// Comparativo de fornecedores
+// ---------------------------------------------------------------------------
+//
+// A ferramenta auxiliar que o comprador usa para decidir: item por item, o que
+// cada fornecedor cobrou, o unitario e o total, com o melhor preco destacado.
+
+export type Proposta = {
+    fornecedor: string;
+    unitario: number;
+    total: number;
+    prazo: number;
+    vencedor: boolean;
+    // Menor preco do item entre quem cotou.
+    melhor: boolean;
+};
+
+export type LinhaComparativo = {
+    item: number;
+    produto: string;
+    descricao: string;
+    quantidade: number;
+    unidade: string;
+    propostas: Proposta[];
+};
+
+export function Comparativo(cotacao: Cotacao): LinhaComparativo[] {
+    return cotacao.itens.map((item) => {
+        const propostas: Proposta[] = [];
+
+        for (const fornecedor of cotacao.fornecedores) {
+            const linha = fornecedor.itens.find((i) => i.item == item.id);
+            if (linha == undefined) {
+                continue;
+            }
+
+            propostas.push({
+                fornecedor: fornecedor.fornecedor,
+                unitario: linha.valorUnitario,
+                total: linha.valorUnitario * item.quantidade,
+                prazo: linha.leadTimeItem + linha.leadTimeTransporte,
+                vencedor: linha.vencedor,
+                melhor: false,
+            });
+        }
+
+        // Quem nao cotou fica no fim: unitario zero nao e preco melhor, e sim
+        // ausencia de proposta.
+        propostas.sort((a, b) => {
+            if (a.unitario <= 0) {
+                return 1;
+            }
+            if (b.unitario <= 0) {
+                return -1;
+            }
+            return a.unitario - b.unitario;
+        });
+
+        const comPreco = propostas.filter((p) => p.unitario > 0);
+        if (comPreco.length > 0) {
+            comPreco[0].melhor = true;
+        }
+
+        return {
+            item: item.id,
+            produto: item.produto,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            unidade: item.unidade,
+            propostas,
+        };
+    });
+}
+
+// Quanto sairia comprando cada item de quem cobrou menos. E o piso da cotacao,
+// que o comprador usa como referencia contra o total de um fornecedor so.
+export function TotalMelhorCombinacao(cotacao: Cotacao): number {
+    return Comparativo(cotacao).reduce((soma, linha) => {
+        const melhor = linha.propostas.find((p) => p.melhor);
+        return soma + (melhor != undefined ? melhor.total : 0);
+    }, 0);
+}
+
+// Quanto sairia se um fornecedor so levasse tudo. Fornecedor que deixou item em
+// branco nao consegue atender a cotacao inteira, e a tela avisa isso.
+export function TotalSeLevarTudo(cotacao: Cotacao, codigo: string): number {
+    const fornecedor = cotacao.fornecedores.find((f) => f.fornecedor == codigo);
+    if (fornecedor == undefined) {
+        return 0;
+    }
+
+    return fornecedor.itens.reduce(
+        (soma, linha) => soma + linha.valorUnitario * QuantidadeDoItem(cotacao, linha.item),
+        0,
+    ) + fornecedor.freteFornecedor + fornecedor.freteMk - fornecedor.desconto;
+}
+
 // Planilha da cotacao, nas mesmas colunas e na mesma ordem do Excel que ele
 // exporta: uma linha por item e fornecedor. Sai como CSV com ponto e virgula,
 // que o Excel em portugues abre direto.
@@ -800,7 +1667,11 @@ export function CotacaoCsv(cotacao: Cotacao): string {
         return valor;
     }
 
-    const linhas: string[] = ["COTAÇÃO : " + cotacao.numero, "", colunas.join(";")];
+    // "sep=;" na primeira linha e uma convencao que o Excel le: sem ela, numa
+    // instalacao em portugues que espera virgula, o arquivo abre com tudo
+    // grudado na coluna A. Outros programas mostram essa linha como texto, o
+    // que e um preco baixo perto de abrir torto no Excel.
+    const linhas: string[] = ["sep=;", "COTAÇÃO : " + cotacao.numero, "", colunas.join(";")];
 
     for (const fornecedor of cotacao.fornecedores) {
         for (const valor of fornecedor.itens) {

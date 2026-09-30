@@ -1,4 +1,4 @@
-import { GetUser } from "@/api/users";
+import { DEMO, PodeEntrar } from "@/api/demo";
 import { MenuItem } from "@/components/menu-item";
 import { Flex, VStack, Text } from "@chakra-ui/react";
 import { IconShieldFilled } from "@tabler/icons-react";
@@ -13,8 +13,7 @@ export default async function Restricted() {
 
     const cookieStore = await cookies();
     const user = cookieStore.get("user")?.value ?? "";
-    const userData = await GetUser(user);
-    if (!(userData?.admin ?? false)) {
+    if (!(await PodeEntrar(user))) {
         redirect("/");
     }
 
@@ -32,16 +31,21 @@ export default async function Restricted() {
                     </ViewTransition>
                 </VStack>
 
+                {/* No modo demonstracao so entram as telas que rodam sem
+                    backend. O resto depende do banco, do leitor RFID e do
+                    reconhecimento facial, entao so apareceria para quebrar. */}
                 <ViewTransition name="mainContent">
-                    <MenuItem action="users" />
-                    <MenuItem action="groups" />
-                    <MenuItem action="items" />
-                    <MenuItem action="separacao" />
-                    <MenuItem action="entrega" />
-                    <MenuItem action="fill" />
+                    {!DEMO ? <MenuItem action="users" /> : undefined}
+                    {!DEMO ? <MenuItem action="groups" /> : undefined}
+                    {!DEMO ? <MenuItem action="items" /> : undefined}
+                    {!DEMO ? <MenuItem action="separacao" /> : undefined}
+                    {!DEMO ? <MenuItem action="entrega" /> : undefined}
+                    {!DEMO ? <MenuItem action="fill" /> : undefined}
                     <MenuItem action="cotacoes" />
-                    <MenuItem action="locais" />
-                    <MenuItem action="leave" />
+                    <MenuItem action="pedidos" />
+                    <MenuItem action="estoque" />
+                    {!DEMO ? <MenuItem action="locais" /> : undefined}
+                    {!DEMO ? <MenuItem action="leave" /> : undefined}
                 </ViewTransition>
             </VStack>
         </Flex>

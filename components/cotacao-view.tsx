@@ -7,8 +7,14 @@ import {
     CotacaoCsv,
     FornecedorNome,
     GerarCotacao,
+    GerarPedidos,
     GetCotacao,
     ItensSemValor,
+    ItensSemVencedor,
+    ItensVencidos,
+    ListPedidosDaCotacao,
+    Pedido,
+    PedidoTotais,
     LimpaValores,
     ListFornecedores,
     RemoveFornecedor,
@@ -32,7 +38,7 @@ import { SelectField } from "@/components/select-field";
 import { Badge, Box, Button, Flex, Input, Text, VStack } from "@chakra-ui/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { IconCurrencyDollar, IconFileSpreadsheet, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconCurrencyDollar, IconFileSpreadsheet, IconPlus, IconScale, IconShoppingCart, IconTrash, IconTrophy } from "@tabler/icons-react";
 import { C } from "@/theme/colors";
 
 // A cotacao: cabecalho com os dados gerais, o grid dos fornecedores e o grid dos
@@ -46,6 +52,8 @@ export function CotacaoView({ id }: { id: number }) {
     const [cotacao, setCotacao] = useState<Cotacao | undefined>(undefined);
     const [carregado, setCarregado] = useState(false);
     const [adicionando, setAdicionando] = useState(false);
+    const [pedidos, setPedidos] = useState<Pedido[]>([]);
+    const [aviso, setAviso] = useState<string | undefined>(undefined);
     // Quantidade fica em texto enquanto a pessoa digita: formatar a cada tecla
     // atrapalharia quem escreve "27,9".
     const [qtdes, setQtdes] = useState<Record<number, string>>({});
@@ -55,6 +63,7 @@ export function CotacaoView({ id }: { id: number }) {
         // corpo do efeito dispara render em cascata.
         const primeira = setTimeout(() => {
             setCotacao(GetCotacao(id));
+            setPedidos(ListPedidosDaCotacao(id));
             setCarregado(true);
         }, 0);
 
@@ -63,6 +72,7 @@ export function CotacaoView({ id }: { id: number }) {
 
     function recarregar() {
         setCotacao(GetCotacao(id));
+        setPedidos(ListPedidosDaCotacao(id));
     }
 
     if (!carregado) {
@@ -84,6 +94,10 @@ export function CotacaoView({ id }: { id: number }) {
     const disponiveis = ListFornecedores().filter(
         (f) => !atual.fornecedores.some((c) => c.fornecedor == f.codigo),
     );
+    // Quantos itens ja tem fornecedor vencedor, e quantos ainda nao. Sem
+    // vencedor nao ha o que pedir.
+    const semVencedor = ItensSemVencedor(atual);
+    const vencedoresTotal = atual.itens.length - semVencedor;
 
     function exportar() {
         BaixarCsv("cotacao-" + atual.numero + ".csv", CotacaoCsv(atual));
@@ -199,6 +213,7 @@ export function CotacaoView({ id }: { id: number }) {
             {atual.fornecedores.map((fornecedor) => {
                 const totais = Totais(atual, fornecedor.fornecedor);
                 const falta = ItensSemValor(atual, fornecedor.fornecedor);
+                const vencidos = ItensVencidos(atual, fornecedor.fornecedor);
 
                 return <Flex
                     key={fornecedor.fornecedor}
@@ -221,6 +236,10 @@ export function CotacaoView({ id }: { id: number }) {
                             {totais.prazo > 0 ? ` · ${totais.prazo} dias` : ""}
                         </Text>
                     </Box>
+
+                    {vencidos > 0 ? <Badge bg={C.success} color="white" px="2" py="1" borderRadius="md" fontSize="0.75rem">
+                        VENCE {vencidos}
+                    </Badge> : undefined}
 
                     {atual.gerada ? (falta == 0 ? <Text fontSize="1.05rem" color={C.ink} whiteSpace="nowrap">
                         {moeda(totais.total)}
@@ -308,6 +327,41 @@ export function CotacaoView({ id }: { id: number }) {
             ))}
         </VStack>
 
+        {/* Pedidos gerados a partir desta cotacao. Um por fornecedor. */}
+        {pedidos.length > 0 ? <VStack gap="0.5rem" align="stretch">
+            <Text fontSize="1.05rem" color={C.sub} px="0.25rem">
+                Pedidos gerados ({pedidos.length})
+            </Text>
+
+            {pedidos.map((pedido) => (
+                <Link key={pedido.id} href={"/restricted/pedidos/" + String(pedido.id)} style={{ width: "100%" }}>
+                    <Flex
+                        align="center"
+                        gap="3"
+                        px="1rem"
+                        py="0.7rem"
+                        bg={C.successSoft}
+                        borderWidth="0.1rem"
+                        borderColor={C.success}
+                        borderRadius="lg"
+                        _hover={{ borderColor: C.accent }}
+                    >
+                        <Box flex="1" minW="0">
+                            <Text fontSize="1.05rem" color={C.ink} lineClamp={1}>
+                                Pedido {pedido.numero} · {FornecedorNome(pedido.fornecedor)}
+                            </Text>
+                            <Text fontSize="0.85rem" color={C.sub}>
+                                {pedido.itens.length} {pedido.itens.length == 1 ? "item" : "itens"}
+                            </Text>
+                        </Box>
+                        <Text fontSize="1.05rem" color={C.ink} whiteSpace="nowrap">
+                            {moeda(PedidoTotais(pedido).total)}
+                        </Text>
+                    </Flex>
+                </Link>
+            ))}
+        </VStack> : undefined}
+
         {/* Workflow, na ordem da faixa de botoes dele. */}
         <VStack gap="0.5rem" align="stretch">
             {aberta ? <Button
@@ -321,6 +375,28 @@ export function CotacaoView({ id }: { id: number }) {
             >
                 Gerar cotação
             </Button> : undefined}
+
+            {/* Comparativo: quem cobrou quanto em cada item. E o apoio para
+                escolher o vencedor sem abrir fornecedor por fornecedor. */}
+            {atual.gerada ? <Link href={"/restricted/cotacoes/" + String(atual.id) + "/comparativo"} style={{ width: "100%" }}>
+                <Flex
+                    w="100%"
+                    align="center"
+                    justify="center"
+                    gap="2"
+                    px="1rem"
+                    py="0.85rem"
+                    bg={C.surface}
+                    color={C.ink}
+                    borderWidth="0.1rem"
+                    borderColor={C.line}
+                    borderRadius="lg"
+                    _hover={{ borderColor: C.accent }}
+                >
+                    <IconScale size={20} />
+                    <Text fontSize="1.05rem">Comparativo</Text>
+                </Flex>
+            </Link> : undefined}
 
             {atual.gerada ? <Link href={"/restricted/cotacoes/" + String(atual.id) + "/valores"} style={{ width: "100%" }}>
                 <Flex
@@ -339,6 +415,44 @@ export function CotacaoView({ id }: { id: number }) {
                     <Text fontSize="1.05rem">Inserir valores</Text>
                 </Flex>
             </Link> : undefined}
+
+            {/* Gerar pedidos: agrupa os itens vencedores por fornecedor, um
+                pedido para cada. Fornecedor que ja tem pedido desta cotacao e
+                pulado, entao clicar duas vezes nao duplica. */}
+            {atual.gerada && vencedoresTotal > 0 ? <Button
+                bg={C.success}
+                color="white"
+                onClick={() => {
+                    const gerados = GerarPedidos(atual.id, "");
+                    recarregar();
+                    if (gerados.length == 0) {
+                        setAviso("Nenhum pedido novo: os fornecedores vencedores já têm pedido nesta cotação.");
+                        return;
+                    }
+                    setAviso(undefined);
+                }}
+            >
+                <IconShoppingCart size={18} /> Gerar pedidos
+                {semVencedor > 0 ? ` (${semVencedor} ${semVencedor == 1 ? "item fica" : "itens ficam"} de fora)` : ""}
+            </Button> : undefined}
+
+            {atual.gerada && vencedoresTotal == 0 ? <Flex
+                align="center"
+                gap="2"
+                px="1rem"
+                py="0.7rem"
+                bg={C.surfaceHover}
+                borderWidth="0.1rem"
+                borderColor={C.line}
+                borderRadius="lg"
+            >
+                <Box color={C.faint}><IconTrophy size={18} /></Box>
+                <Text fontSize="0.9rem" color={C.sub}>
+                    Marque o vencedor de cada item na entrada de valores para gerar os pedidos.
+                </Text>
+            </Flex> : undefined}
+
+            {aviso != undefined ? <Text fontSize="0.9rem" color={C.warningInk}>{aviso}</Text> : undefined}
 
             {atual.gerada ? <Button
                 variant="outline"
