@@ -29,11 +29,14 @@ import { IconChevronDown, IconTrophy } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { C } from "@/theme/colors";
 
-// Entrada de valores, no formato da tela "Cotação - Entrada de valores". Grid de
-// cima: um fornecedor por linha, com validade, numero da cotacao dele, condicao
-// de pagamento, frete e desconto. Grid de baixo: os itens do fornecedor
-// selecionado, com vencedor, valor unitario, impostos, leadtimes e fabricante.
-// Trocar o fornecedor de cima recarrega o de baixo.
+// Entrada de valores. Um fornecedor por linha, e o selecionado abre no lugar:
+// dados gerais da proposta (validade, numero da cotacao dele, condicao de
+// pagamento, frete, desconto), os itens dele com vencedor, valor unitario,
+// impostos e leadtimes, e os totais.
+//
+// Tudo do fornecedor fica dentro do bloco dele. Antes os itens ficavam soltos
+// abaixo da lista inteira, e com outro fornecedor no meio parecia que os itens
+// eram do de baixo.
 //
 // O que a pessoa digita fica num rascunho separado do valor guardado: so o texto
 // preserva a virgula no meio da digitacao. A chave inclui o fornecedor, entao
@@ -84,9 +87,7 @@ export function CotacaoValores({ id }: { id: number }) {
     }
 
     const atual = cotacao;
-    const fornecedorAtivo = atual.fornecedores.find((f) => f.fornecedor == ativo);
     const faltaAlgum = atual.fornecedores.some((f) => Totais(atual, f.fornecedor).semValor > 0);
-    const totaisAtivo = fornecedorAtivo != undefined ? Totais(atual, fornecedorAtivo.fornecedor) : undefined;
 
     // Os campos ficam em componentes de modulo, e nao aqui dentro: definidos
     // dentro do render eles remontariam a cada tecla e o input perderia o foco.
@@ -243,22 +244,20 @@ export function CotacaoValores({ id }: { id: number }) {
                                 ? `Tirar vencedor (${vencidos} ${vencidos == 1 ? "item" : "itens"})`
                                 : "Vencedor em todos os itens"}
                         </Button>
-                    </VStack> : undefined}
-                </VStack>
-            })}
-        </VStack>
 
-        {/* Grid de baixo: os itens do fornecedor selecionado. */}
-        {fornecedorAtivo != undefined ? <VStack gap="0.5rem" align="stretch">
+                        {/* Os itens ficam dentro do bloco do fornecedor: soltos
+                            abaixo da lista eles pareciam ser do fornecedor de
+                            baixo, que foi o que o Clairton apontou. */}
+                        <VStack gap="0.5rem" align="stretch">
             <Text fontSize="1.05rem" color={C.sub} px="0.25rem">
-                Itens de {FornecedorNome(fornecedorAtivo.fornecedor)}
+                Itens de {FornecedorNome(fornecedor.fornecedor)}
             </Text>
 
-            {fornecedorAtivo.itens.map((valor: CotacaoFornecedorItem) => {
+            {fornecedor.itens.map((valor: CotacaoFornecedorItem) => {
                 const item = atual.itens.find((i) => i.id == valor.item);
                 const quantidade = QuantidadeDoItem(atual, valor.item);
                 const abertos = impostosAbertos.includes(valor.item);
-                const prefixo = fornecedorAtivo.fornecedor + ":" + String(valor.item);
+                const prefixo = fornecedor.fornecedor + ":" + String(valor.item);
 
                 return <VStack
                     key={valor.item}
@@ -288,7 +287,7 @@ export function CotacaoValores({ id }: { id: number }) {
                             color={valor.vencedor ? "white" : C.faint}
                             cursor="pointer"
                             onClick={() => {
-                                SetVencedor(atual.id, fornecedorAtivo.fornecedor, valor.item, !valor.vencedor);
+                                SetVencedor(atual.id, fornecedor.fornecedor, valor.item, !valor.vencedor);
                                 recarregar();
                             }}
                         >
@@ -317,7 +316,7 @@ export function CotacaoValores({ id }: { id: number }) {
                             rotulo="Valor unitário"
                             valor={valor.valorUnitario}
                             onChange={(novo) => {
-                                SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { valorUnitario: novo });
+                                SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { valorUnitario: novo });
                             }}
                         />
                         <CampoNumero
@@ -327,7 +326,7 @@ export function CotacaoValores({ id }: { id: number }) {
                             sufixo="dias"
                             valor={valor.leadTimeItem}
                             onChange={(novo) => {
-                                SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { leadTimeItem: novo });
+                                SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { leadTimeItem: novo });
                             }}
                         />
                         <CampoNumero
@@ -337,7 +336,7 @@ export function CotacaoValores({ id }: { id: number }) {
                             sufixo="dias"
                             valor={valor.leadTimeTransporte}
                             onChange={(novo) => {
-                                SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, {
+                                SetValorItem(atual.id, fornecedor.fornecedor, valor.item, {
                                     leadTimeTransporte: novo,
                                 });
                             }}
@@ -371,7 +370,7 @@ export function CotacaoValores({ id }: { id: number }) {
                                 sufixo="%"
                                 valor={valor.ipi}
                                 onChange={(novo) => {
-                                    SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { ipi: novo });
+                                    SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { ipi: novo });
                                 }}
                             />
                             <CampoNumero
@@ -381,7 +380,7 @@ export function CotacaoValores({ id }: { id: number }) {
                                 sufixo="%"
                                 valor={valor.icms}
                                 onChange={(novo) => {
-                                    SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { icms: novo });
+                                    SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { icms: novo });
                                 }}
                             />
                             <CampoNumero
@@ -391,7 +390,7 @@ export function CotacaoValores({ id }: { id: number }) {
                                 sufixo="%"
                                 valor={valor.pis}
                                 onChange={(novo) => {
-                                    SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { pis: novo });
+                                    SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { pis: novo });
                                 }}
                             />
                             <CampoNumero
@@ -401,7 +400,7 @@ export function CotacaoValores({ id }: { id: number }) {
                                 sufixo="%"
                                 valor={valor.cofins}
                                 onChange={(novo) => {
-                                    SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { cofins: novo });
+                                    SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { cofins: novo });
                                 }}
                             />
                         </Flex>
@@ -413,7 +412,7 @@ export function CotacaoValores({ id }: { id: number }) {
                                 sufixo="R$"
                                 valor={valor.icmsSt}
                                 onChange={(novo) => {
-                                    SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { icmsSt: novo });
+                                    SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { icmsSt: novo });
                                 }}
                             />
                             <CampoNumero
@@ -423,7 +422,7 @@ export function CotacaoValores({ id }: { id: number }) {
                                 sufixo="R$"
                                 valor={valor.difal}
                                 onChange={(novo) => {
-                                    SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { difal: novo });
+                                    SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { difal: novo });
                                 }}
                             />
                             <CampoNumero
@@ -433,7 +432,7 @@ export function CotacaoValores({ id }: { id: number }) {
                                 sufixo="%"
                                 valor={valor.fatorImpostos}
                                 onChange={(novo) => {
-                                    SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, {
+                                    SetValorItem(atual.id, fornecedor.fornecedor, valor.item, {
                                         fatorImpostos: novo,
                                     });
                                 }}
@@ -443,17 +442,18 @@ export function CotacaoValores({ id }: { id: number }) {
                             rotulo="Fabricante"
                             valor={valor.fabricante}
                             onChange={(novo) => {
-                                SetValorItem(atual.id, fornecedorAtivo.fornecedor, valor.item, { fabricante: novo });
+                                SetValorItem(atual.id, fornecedor.fornecedor, valor.item, { fabricante: novo });
                                 recarregar();
                             }}
                         />
                     </VStack> : undefined}
                 </VStack>
             })}
-        </VStack> : undefined}
+                        </VStack>
 
-        {/* Rodape com os totais do fornecedor selecionado, como na tela dele. */}
-        {totaisAtivo != undefined ? <VStack
+                        {/* Rodape com os totais deste fornecedor, como na tela
+                            dele. */}
+                        <VStack
             gap="0.3rem"
             align="stretch"
             px="1rem"
@@ -463,12 +463,16 @@ export function CotacaoValores({ id }: { id: number }) {
             borderColor={C.line}
             borderRadius="lg"
         >
-            <Total rotulo="Total de descontos" valor={totaisAtivo.desconto} />
-            <Total rotulo="Total IPI" valor={totaisAtivo.ipi} />
-            <Total rotulo="Total ICMS" valor={totaisAtivo.icms} />
-            <Total rotulo="Total ICMS-ST" valor={totaisAtivo.icmsSt} />
-            <Total rotulo="Total produtos + frete" valor={totaisAtivo.total} forte />
-        </VStack> : undefined}
+            <Total rotulo="Total de descontos" valor={totais.desconto} />
+            <Total rotulo="Total IPI" valor={totais.ipi} />
+            <Total rotulo="Total ICMS" valor={totais.icms} />
+            <Total rotulo="Total ICMS-ST" valor={totais.icmsSt} />
+                            <Total rotulo="Total produtos + frete" valor={totais.total} forte />
+                        </VStack>
+                    </VStack> : undefined}
+                </VStack>
+            })}
+        </VStack>
 
         {/* Fechar so quando todos os fornecedores tem valor em todos os itens.
             Enquanto falta algo, a cotacao continua pendente. */}

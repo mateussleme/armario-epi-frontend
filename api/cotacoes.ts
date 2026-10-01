@@ -1361,6 +1361,58 @@ export type ResultadoBaixa = {
 // de requisicao de compra digitada.
 const PREFIXO_REPOSICAO = "EST-";
 
+// Onde esta a reposicao deste produto agora. A tela de estoque usa para mostrar
+// o link no proprio item, em vez de so avisar e deixar a pessoa procurar.
+//
+// A ordem importa: pedido e o estagio mais adiantado, depois cotacao, depois a
+// fila. Aqui entra qualquer cotacao com o produto, nao so as que nasceram do
+// ponto de pedido, porque para quem olha o estoque o que importa e saber que
+// aquele item ja esta sendo comprado.
+export type ReposicaoAberta = {
+    onde: "fila" | "cotacao" | "pedido";
+    rotulo: string;
+    link: string;
+};
+
+export function ReposicaoDoProduto(codigo: string): ReposicaoAberta | undefined {
+    const s = carregar();
+
+    const pedido = s.pedidos.find(
+        (p) => p.status != STATUS_PEDIDO_CANCELADO && p.itens.some((i) => i.produto == codigo),
+    );
+    if (pedido != undefined) {
+        return {
+            onde: "pedido",
+            rotulo: "Em pedido " + pedido.numero,
+            link: "/restricted/pedidos/" + String(pedido.id),
+        };
+    }
+
+    const cotacao = s.cotacoes.find(
+        (c) => c.status != STATUS_FECHADA && c.itens.some((i) => i.produto == codigo),
+    );
+    if (cotacao != undefined) {
+        return {
+            onde: "cotacao",
+            rotulo: "Em cotação " + cotacao.numero,
+            link: "/restricted/cotacoes/" + String(cotacao.id),
+        };
+    }
+
+    const fila = s.requisicoes.find(
+        (r) => r.produto == codigo && !r.cotada && r.requisicao.startsWith(PREFIXO_REPOSICAO),
+    );
+    if (fila != undefined) {
+        return {
+            onde: "fila",
+            rotulo: "Na lista a cotar (" + fila.requisicao + ")",
+            link: "/restricted/cotacoes",
+        };
+    }
+
+    return undefined;
+}
+
 // Ja existe reposicao em andamento para este produto? Sem isso, cada baixa
 // abaixo do ponto de pedido criaria uma linha nova, e a lista a cotar encheria
 // de repeticao do mesmo item.
@@ -1407,7 +1459,7 @@ export function BaixarEstoque(codigo: string, quantidade: number, usuario: strin
         return {
             ok: true,
             saldo: produto.saldo,
-            mensagem: `Saíram ${decimal(saiu)} ${produto.unidade}. Saldo ${decimal(produto.saldo)}, acima do ponto de pedido.`,
+            mensagem: `Saíram ${decimal(saiu)} ${produto.unidade}. Saldo acima do ponto de pedido.`,
         };
     }
 
@@ -1416,7 +1468,7 @@ export function BaixarEstoque(codigo: string, quantidade: number, usuario: strin
         return {
             ok: true,
             saldo: produto.saldo,
-            mensagem: `Saldo ${decimal(produto.saldo)}, no ponto de pedido. Já existe reposição em andamento para este item.`,
+            mensagem: "No ponto de pedido, com reposição já em andamento.",
         };
     }
 
@@ -1429,7 +1481,7 @@ export function BaixarEstoque(codigo: string, quantidade: number, usuario: strin
             ok: true,
             saldo: produto.saldo,
             pedido,
-            mensagem: `Saldo ${decimal(produto.saldo)}, no ponto de pedido. Fornecedor exclusivo: gerado o pedido ${pedido.numero}.`,
+            mensagem: `Fornecedor exclusivo: gerado o pedido ${pedido.numero}.`,
         };
     }
 
@@ -1439,7 +1491,7 @@ export function BaixarEstoque(codigo: string, quantidade: number, usuario: strin
         ok: true,
         saldo: produto.saldo,
         requisicao,
-        mensagem: `Saldo ${decimal(produto.saldo)}, no ponto de pedido. Item enviado para a lista a cotar (${requisicao.requisicao}).`,
+        mensagem: `No ponto de pedido: item enviado para a lista a cotar (${requisicao.requisicao}).`,
     };
 }
 
